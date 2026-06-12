@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Animated, StyleSheet, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
@@ -12,7 +12,6 @@ export default function SplashScreen({ navigation }) {
 
   useEffect(() => {
     Animated.sequence([
-      // 1. Logo pops in
       Animated.parallel([
         Animated.spring(logoScale, {
           toValue: 1,
@@ -26,22 +25,18 @@ export default function SplashScreen({ navigation }) {
           useNativeDriver: true,
         }),
       ]),
-      // 2. Tagline fades in
       Animated.timing(tagOpacity, {
         toValue: 1,
         duration: 350,
         delay: 100,
         useNativeDriver: true,
       }),
-      // 3. Dot indicator fades in
       Animated.timing(dotOpacity, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      // 4. Hold for a moment
       Animated.delay(900),
-      // 5. Fade everything out
       Animated.parallel([
         Animated.timing(logoOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
         Animated.timing(tagOpacity,  { toValue: 0, duration: 300, useNativeDriver: true }),
@@ -59,29 +54,28 @@ export default function SplashScreen({ navigation }) {
       start={{ x: 0.2, y: 0 }}
       end={{ x: 0.8, y: 1 }}
     >
-      {/* Subtle radial glow in center */}
       <View style={styles.glow} />
 
-      {/* Logo block */}
       <Animated.View
         style={[
           styles.logoBlock,
           { opacity: logoOpacity, transform: [{ scale: logoScale }] },
         ]}
       >
-        {/* Icon mark — fork + flame */}
-        <Text style={styles.icon}>🍽️</Text>
+        {/* Your logo image instead of emoji */}
+        <Image
+          source={require('../../assets/images/icon.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
 
-        {/* App name */}
         <Text style={styles.appName}>Seven Bites</Text>
 
-        {/* Tagline */}
         <Animated.Text style={[styles.tagline, { opacity: tagOpacity }]}>
           Good food, fast.
         </Animated.Text>
       </Animated.View>
 
-      {/* Bottom dot */}
       <Animated.View style={[styles.bottomDot, { opacity: dotOpacity }]} />
     </LinearGradient>
   );
@@ -103,8 +97,9 @@ const styles = StyleSheet.create({
   logoBlock: {
     alignItems: 'center',
   },
-  icon: {
-    fontSize: 64,
+  logoImage: {
+    width: 100,
+    height: 100,
     marginBottom: 16,
   },
   appName: {

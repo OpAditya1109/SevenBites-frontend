@@ -8,7 +8,7 @@
     "scheme": "sevenbites",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "SevenBites needs your location to find restaurants near you and auto-fill your delivery address.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "SevenBites needs your location to find restaurants near you and auto-fill your delivery address."
@@ -16,10 +16,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#E6F4FE"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -31,7 +29,7 @@
       "package": "com.sevenbites.app"
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       [
@@ -39,7 +37,7 @@
         {
           "backgroundColor": "#208AEF",
           "android": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/icon.png",
             "imageWidth": 76
           }
         }
@@ -54,7 +52,7 @@
       "expo-font"
     ],
     "extra": {
-      "apiBaseUrl": "http://192.168.1.4:5001/api",
+      "apiBaseUrl": "https://sevenbites-backend.onrender.com/api",
       "eas": {
         "projectId": "14365027-eead-4c32-a015-d4bb56057536"
       }
