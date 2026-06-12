@@ -35,7 +35,7 @@ export default function LoginScreen({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>🍽</Text>
-          <Text style={styles.brand}>Zomato</Text>
+          <Text style={styles.brand}>Sevenbites</Text>
           <Text style={styles.tagline}>Find the best food near you</Text>
         </View>
 

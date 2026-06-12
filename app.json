@@ -24,8 +24,11 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
-      ]
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.sevenbites.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -50,8 +53,11 @@
       "expo-secure-store",
       "expo-font"
     ],
-        "extra": {
-      "apiBaseUrl": "http://192.168.1.4:5001/api"
+    "extra": {
+      "apiBaseUrl": "http://192.168.1.4:5001/api",
+      "eas": {
+        "projectId": "14365027-eead-4c32-a015-d4bb56057536"
+      }
     },
     "experiments": {
       "typedRoutes": true,

@@ -65,7 +65,7 @@ export const OFFERS = [
   {
     id: '1',
     title: '50% OFF up to ₹100',
-    subtitle: 'Use code ZOMATO50',
+    subtitle: 'Use code SeventBites50',
     bg: '#E23744',
     image: '🍕',
   },

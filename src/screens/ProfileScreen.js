@@ -92,7 +92,7 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>Zomato Clone v1.0.0</Text>
+        <Text style={styles.version}>Sevenbites v1.0.0</Text>
         <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>

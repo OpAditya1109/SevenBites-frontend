@@ -15,7 +15,7 @@ const PAYMENT_METHODS = [
   { id: 'upi',    label: 'UPI / GPay / PhonePe',  icon: '📱' },
   { id: 'card',   label: 'Credit / Debit Card',    icon: '💳' },
   { id: 'cod',    label: 'Cash on Delivery',       icon: '💵' },
-  { id: 'wallet', label: 'Zomato Wallet',          icon: '👝' },
+  { id: 'wallet', label: 'Sevenbites Wallet',          icon: '👝' },
 ];
 
 export default function CheckoutScreen({ route, navigation }) {
