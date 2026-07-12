@@ -18,7 +18,7 @@ export const COLORS = {
   green: '#48C479',
   rating: '#F5A623',
 };
-
+export const TESTING_ZERO_FEES = true;
 export const FONTS = {
   regular: 'System',
   medium: 'System',

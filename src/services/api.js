@@ -1,6 +1,28 @@
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL } from '../utils/constants';
+
+// BASE_URL is like "http://host:5001/api" — the socket server lives at the root, not under /api
+const SOCKET_URL = BASE_URL.replace(/\/api\/?$/, '');
+let socketInstance = null;
+
+// One shared socket for the app session. Call connectOrderSocket() when a screen
+// needs live pushes (e.g. order tracking) and disconnectOrderSocket() on unmount.
+export const connectOrderSocket = () => {
+  if (!socketInstance) {
+    socketInstance = io(SOCKET_URL, { transports: ['websocket'], autoConnect: true });
+  } else if (!socketInstance.connected) {
+    socketInstance.connect();
+  }
+  return socketInstance;
+};
+
+export const disconnectOrderSocket = () => {
+  if (socketInstance) {
+    socketInstance.disconnect();
+  }
+};
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -139,6 +161,8 @@ export const setDefaultAddress = (id) => api.put(`/address/${id}/default`);
 // ── Reviews ───────────────────────────────────────────
 export const addReview = (data) => api.post('/reviews', data);
 export const getReviewsByRestaurant = (restaurantId) => api.get(`/reviews/${restaurantId}`);
+// Every review the logged-in user has written — used for the Profile screen's Rating stat.
+export const getMyReviews = () => api.get('/reviews/mine');
 
 // ── Coupons ───────────────────────────────────────────
 // "View all coupons" list — every live coupon annotated with eligibility for this cart.

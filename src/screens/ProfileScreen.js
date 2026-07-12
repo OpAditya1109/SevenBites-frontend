@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
+import { getUserOrders, getMyReviews } from '../services/api';
 
 const MENU_ITEMS = [
   { icon: 'location-outline', label: 'My Addresses', screen: 'Address' },
@@ -17,8 +18,63 @@ const MENU_ITEMS = [
   { icon: 'settings-outline', label: 'Settings', screen: null },
 ];
 
+// Orders that didn't actually complete shouldn't count toward "money saved" —
+// the discount was never really captured if the order was cancelled/rejected.
+const VOID_STATUSES = ['cancelled', 'rejected'];
+
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
+
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [ordersCount, setOrdersCount] = useState(0);
+  const [totalSaved, setTotalSaved] = useState(0);
+  const [avgRating, setAvgRating] = useState(null); // null = no reviews written yet
+  const [reviewCount, setReviewCount] = useState(0);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const [ordersRes, reviewsRes] = await Promise.all([
+        getUserOrders(),
+        getMyReviews(),
+      ]);
+
+      const orders = ordersRes?.data?.data || [];
+      const reviews = reviewsRes?.data?.data || [];
+
+      setOrdersCount(orders.length);
+
+      const saved = orders
+        .filter((o) => !VOID_STATUSES.includes(o.status))
+        .reduce((sum, o) => sum + (o.discountAmount || 0), 0);
+      setTotalSaved(saved);
+
+      if (reviews.length > 0) {
+        const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+        setAvgRating(Math.round(avg * 10) / 10);
+      } else {
+        setAvgRating(null);
+      }
+      setReviewCount(reviews.length);
+    } catch {
+      // Backend unreachable / not logged in yet — fall back to zeroed stats
+      // rather than showing stale or fake numbers.
+      setOrdersCount(0);
+      setTotalSaved(0);
+      setAvgRating(null);
+      setReviewCount(0);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+
+  // Refresh whenever the Profile tab regains focus — e.g. right after placing
+  // an order or leaving a review, so the stats don't go stale.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchStats);
+    return unsubscribe;
+  }, [navigation, fetchStats]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -26,6 +82,12 @@ export default function ProfileScreen({ navigation }) {
       { text: 'Logout', style: 'destructive', onPress: logout },
     ]);
   };
+
+  const ratingDisplay = statsLoading
+    ? '—'
+    : avgRating !== null
+      ? `${avgRating} ⭐`
+      : 'New';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -51,21 +113,23 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Stats */}
+        {/* Stats — now pulled live from /orders/my-orders and /reviews/mine */}
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{statsLoading ? '—' : ordersCount}</Text>
             <Text style={styles.statLabel}>Orders</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>₹2,340</Text>
+            <Text style={styles.statValue}>{statsLoading ? '—' : `₹${totalSaved.toLocaleString('en-IN')}`}</Text>
             <Text style={styles.statLabel}>Saved</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>4.8 ⭐</Text>
-            <Text style={styles.statLabel}>Rating</Text>
+            <Text style={styles.statValue}>{ratingDisplay}</Text>
+            <Text style={styles.statLabel}>
+              {statsLoading || avgRating !== null ? 'Rating' : 'No reviews yet'}
+            </Text>
           </View>
         </View>
 

@@ -10,6 +10,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import {
   COLORS, SPACING, PLATFORM_FEE, GST_RATE,
   FREE_DELIVERY_THRESHOLD, DEFAULT_DELIVERY_FEE, ACTIVE_ADDRESS_KEY,
+  TESTING_ZERO_FEES,
 } from '../utils/constants';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -93,10 +94,12 @@ export default function CartScreen({ navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPrice]);
 
-  const baseDeliveryFee = restaurantMeta?.deliveryFee > 0 ? restaurantMeta.deliveryFee : DEFAULT_DELIVERY_FEE;
-  const isFreeDelivery = totalPrice >= FREE_DELIVERY_THRESHOLD;
+const baseDeliveryFee = TESTING_ZERO_FEES
+    ? 0
+    : (restaurantMeta?.deliveryFee > 0 ? restaurantMeta.deliveryFee : DEFAULT_DELIVERY_FEE);
+  const isFreeDelivery = TESTING_ZERO_FEES || totalPrice >= FREE_DELIVERY_THRESHOLD;
   const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
-  const platformFee = PLATFORM_FEE;
+  const platformFee = TESTING_ZERO_FEES ? 0 : PLATFORM_FEE;
   const gst = Math.round(totalPrice * GST_RATE);
   const discountAmount = selectedCoupon?.discountAmount || 0;
   const toPay = Math.max(0, totalPrice + deliveryFee + platformFee + gst - discountAmount);
@@ -174,6 +177,10 @@ export default function CartScreen({ navigation }) {
       discountAmount,
       deliveryAddress: formatAddressString(activeAddress),
       addressId: activeAddress._id,
+      // Real distance-based ETA already fetched above for the on-screen "Delivery in X mins"
+      // row — attach it here too so OrderTrackingScreen shows the same real number instead
+      // of the backend's generic "30-45 min" default.
+      estimatedDeliveryTime: eta?.etaText || restaurantMeta?.deliveryTime,
     };
 
     setPaying(true);

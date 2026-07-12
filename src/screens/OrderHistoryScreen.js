@@ -4,12 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
 import { getUserOrders } from '../services/api';
-
-const MOCK_ORDERS = [
-  { _id: 'o1', restaurantName: "Domino's Pizza", items: [{ name: 'Margherita Pizza', quantity: 1 }, { name: 'Garlic Bread', quantity: 2 }], totalAmount: 447, status: 'delivered', createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { _id: 'o2', restaurantName: 'Biryani Blues', items: [{ name: 'Chicken Biryani', quantity: 2 }], totalAmount: 598, status: 'cancelled', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { _id: 'o3', restaurantName: 'Sweet Cravings', items: [{ name: 'Chocolate Cake', quantity: 1 }, { name: 'Brownie', quantity: 3 }], totalAmount: 389, status: 'delivered', createdAt: new Date(Date.now() - 172800000).toISOString() },
-];
+import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 
 const STATUS_CONFIG = {
   placed:           { color: COLORS.secondary, icon: 'time-outline',      label: 'Order Placed' },
@@ -24,13 +19,15 @@ export default function OrderHistoryScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   const fetchOrders = useCallback(async () => {
     try {
       const res = await getUserOrders();
       setOrders(res.data.data || res.data);
-    } catch {
-      setOrders(MOCK_ORDERS);
+      setError(null);
+    } catch (err) {
+      setError(err?.message || 'Could not load your orders.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -60,7 +57,16 @@ export default function OrderHistoryScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} colors={[COLORS.primary]} />}
         >
-          {orders.length === 0 ? (
+          {error ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyEmoji}>⚠️</Text>
+              <Text style={styles.emptyTitle}>Couldn't load orders</Text>
+              <Text style={styles.emptySubtitle}>{error}</Text>
+              <TouchableOpacity style={styles.orderBtn} onPress={() => { setLoading(true); fetchOrders(); }}>
+                <Text style={styles.orderBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : orders.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>🍽️</Text>
               <Text style={styles.emptyTitle}>No Orders Yet</Text>
@@ -73,7 +79,12 @@ export default function OrderHistoryScreen({ navigation }) {
             orders.map((order) => {
               const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.delivered;
               return (
-                <TouchableOpacity key={order._id} style={styles.orderCard} activeOpacity={0.85}>
+                <TouchableOpacity
+                  key={order._id}
+                  style={styles.orderCard}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('OrderTracking', { orderId: order._id })}
+                >
                   <View style={styles.orderHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.restName}>{order.restaurantName}</Text>
@@ -93,11 +104,17 @@ export default function OrderHistoryScreen({ navigation }) {
                     <Text style={styles.totalText}>₹{order.totalAmount}</Text>
                     <View style={styles.footerActions}>
                       {order.status === 'delivered' && (
-                        <TouchableOpacity style={styles.reorderBtn}>
+                        <TouchableOpacity
+                          style={styles.reorderBtn}
+                          onPress={(e) => { e.stopPropagation(); navigation.navigate('RestaurantScreen', { restaurantId: order.restaurantId?._id || order.restaurantId }); }}
+                        >
                           <Text style={styles.reorderText}>Reorder</Text>
                         </TouchableOpacity>
                       )}
-                      <TouchableOpacity style={styles.detailBtn}>
+                      <TouchableOpacity
+                        style={styles.detailBtn}
+                        onPress={(e) => { e.stopPropagation(); navigation.navigate('OrderTracking', { orderId: order._id }); }}
+                      >
                         <Text style={styles.detailText}>Details</Text>
                       </TouchableOpacity>
                     </View>
