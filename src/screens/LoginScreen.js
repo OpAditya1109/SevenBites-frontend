@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
+import { ButtonLoader } from '../components/AppLoader';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -75,8 +76,8 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginText}>Login</Text>}
+    <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+            {loading ? <ButtonLoader label="Signing you in..." /> : <Text style={styles.loginText}>Login</Text>}
           </TouchableOpacity>
 
           <View style={styles.divider}>

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image,
-  Modal, Animated, Dimensions, ActivityIndicator, FlatList,
+  Modal, Animated, Dimensions, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RazorpayCheckout from 'react-native-razorpay';
 import {
   COLORS, SPACING, PLATFORM_FEE, GST_RATE,
   FREE_DELIVERY_THRESHOLD, DEFAULT_DELIVERY_FEE, ACTIVE_ADDRESS_KEY,
@@ -14,7 +15,10 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
   getRestaurantById, getDeliveryEstimate, getActiveCoupons, applyCoupon,
+  createRazorpayOrder, verifyPaymentAndPlaceOrder,
 } from '../services/api';
+import { AppLoader, LOADING_MESSAGES, ButtonLoader } from '../components/AppLoader';
+import StatusPopup from '../components/StatusPopup';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -31,25 +35,21 @@ export default function CartScreen({ navigation }) {
   const { items, totalItems, totalPrice, restaurantName, addItem, removeItem, clearCart, restaurantId } = useCart();
   const { user } = useAuth();
 
-  // ── Restaurant meta (exact lat/lng + its own delivery fee) ────────
   const [restaurantMeta, setRestaurantMeta] = useState(null);
-
-  // ── Delivery address (shared with Checkout via AsyncStorage) ─────
   const [activeAddress, setActiveAddress] = useState(null);
-
-  // ── Distance-based delivery ETA ───────────────────────────────────
-  const [eta, setEta] = useState(null); // { etaText, prepMinutes, travelMinutes, distanceKm }
+  const [eta, setEta] = useState(null);
   const [etaLoading, setEtaLoading] = useState(false);
 
-  // ── Coupons ────────────────────────────────────────────────────────
-  const [selectedCoupon, setSelectedCoupon] = useState(null); // { code, description, discountAmount }
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [couponModalVisible, setCouponModalVisible] = useState(false);
   const [coupons, setCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [applyingCode, setApplyingCode] = useState(null);
   const slideAnim = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  // ── Load restaurant meta ───────────────────────────────────────────
+  const [paying, setPaying] = useState(false);
+  const [cancelledVisible, setCancelledVisible] = useState(false);
+
   useEffect(() => {
     if (!restaurantId) return;
     getRestaurantById(restaurantId)
@@ -57,7 +57,6 @@ export default function CartScreen({ navigation }) {
       .catch(() => setRestaurantMeta(null));
   }, [restaurantId]);
 
-  // ── Load active address (and refresh whenever screen refocuses) ──
   const loadAddress = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(ACTIVE_ADDRESS_KEY);
@@ -71,7 +70,6 @@ export default function CartScreen({ navigation }) {
     return unsubscribe;
   }, [navigation, loadAddress]);
 
-  // ── Fetch distance-based delivery ETA once we have both restaurant + address coords ──
   useEffect(() => {
     if (!restaurantId || !activeAddress?.latitude || !activeAddress?.longitude) {
       setEta(null);
@@ -84,7 +82,6 @@ export default function CartScreen({ navigation }) {
       .finally(() => setEtaLoading(false));
   }, [restaurantId, activeAddress?.latitude, activeAddress?.longitude]);
 
-  // ── If the coupon was applied for a cart total that has since changed, re-validate silently ──
   useEffect(() => {
     if (!selectedCoupon) return;
     applyCoupon(selectedCoupon.code, restaurantId, totalPrice)
@@ -92,11 +89,10 @@ export default function CartScreen({ navigation }) {
         const data = res.data.data || res.data;
         setSelectedCoupon({ code: data.code, description: data.description, discountAmount: data.discountAmount });
       })
-      .catch(() => setSelectedCoupon(null)); // no longer eligible — drop it quietly
+      .catch(() => setSelectedCoupon(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPrice]);
 
-  // ── Bill math ──────────────────────────────────────────────────────
   const baseDeliveryFee = restaurantMeta?.deliveryFee > 0 ? restaurantMeta.deliveryFee : DEFAULT_DELIVERY_FEE;
   const isFreeDelivery = totalPrice >= FREE_DELIVERY_THRESHOLD;
   const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
@@ -106,7 +102,6 @@ export default function CartScreen({ navigation }) {
   const toPay = Math.max(0, totalPrice + deliveryFee + platformFee + gst - discountAmount);
   const totalSavings = discountAmount + (isFreeDelivery ? baseDeliveryFee : 0);
 
-  // ── Coupon modal ───────────────────────────────────────────────────
   const openCouponModal = () => {
     setCouponModalVisible(true);
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
@@ -146,7 +141,6 @@ export default function CartScreen({ navigation }) {
 
   const removeCoupon = () => setSelectedCoupon(null);
 
-  // ── Address picker (shared AsyncStorage key with Checkout) ─────────
   const changeAddress = () => {
     navigation.navigate('Address', {
       onSelect: async (addr) => {
@@ -156,18 +150,73 @@ export default function CartScreen({ navigation }) {
     });
   };
 
-  // ── Proceed to checkout — hand everything already computed here forward ──
-  const goToCheckout = () => {
-    navigation.navigate('Checkout', {
+  // ── Place order → straight to Razorpay, no separate checkout page ──
+  const handlePlaceOrder = async () => {
+    if (!activeAddress) {
+      Alert.alert('No Address', 'Please select a delivery address before placing your order.');
+      return;
+    }
+
+    const orderData = {
+      restaurantId,
+      items: items.map((i) => ({
+        menuItemId: i._id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+      })),
+      totalAmount: toPay,
       itemTotal: totalPrice,
       deliveryFee,
       platformFee,
       gst,
-      discountAmount,
       couponCode: selectedCoupon?.code || '',
-      grandTotal: toPay,
-      estimatedDeliveryTime: eta?.etaText || restaurantMeta?.deliveryTime || '30-45 min',
-    });
+      discountAmount,
+      deliveryAddress: formatAddressString(activeAddress),
+      addressId: activeAddress._id,
+    };
+
+    setPaying(true);
+    try {
+      const rpRes = await createRazorpayOrder(toPay);
+      const rpOrder = rpRes.data.data || rpRes.data;
+
+      const options = {
+        key: rpOrder.keyId,
+        amount: rpOrder.amount,
+        currency: rpOrder.currency || 'INR',
+        name: 'SevenBites',
+        description: `Order from ${restaurantName}`,
+        order_id: rpOrder.orderId,
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: { color: COLORS.primary },
+      };
+
+      const paymentResult = await RazorpayCheckout.open(options);
+
+      const verifyRes = await verifyPaymentAndPlaceOrder({
+        razorpay_order_id: paymentResult.razorpay_order_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id,
+        razorpay_signature: paymentResult.razorpay_signature,
+        orderData,
+      });
+      const order = verifyRes.data.data || verifyRes.data;
+
+      clearCart();
+      navigation.replace('OrderTracking', { orderId: order._id });
+    } catch (err) {
+      if (err?.code === 0 || err?.description || err?.error) {
+        setCancelledVisible(true);
+      } else {
+        Alert.alert('Payment Failed', err?.message || 'Could not complete payment. Please try again.');
+      }
+    } finally {
+      setPaying(false);
+    }
   };
 
   if (items.length === 0) {
@@ -194,7 +243,6 @@ export default function CartScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.black} />
@@ -209,7 +257,6 @@ export default function CartScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Items */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Items</Text>
           {items.map((item) => (
@@ -238,7 +285,6 @@ export default function CartScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Delivery note */}
         {!isFreeDelivery && (
           <View style={styles.deliveryNote}>
             <Ionicons name="information-circle-outline" size={16} color={COLORS.secondary} />
@@ -248,7 +294,6 @@ export default function CartScreen({ navigation }) {
           </View>
         )}
 
-        {/* ── Delivery Details: ETA, deliver-at address, contact ── */}
         <View style={styles.section}>
           <View style={styles.etaRow}>
             <View style={styles.etaIconWrap}>
@@ -256,7 +301,7 @@ export default function CartScreen({ navigation }) {
             </View>
             <View style={{ flex: 1 }}>
               {etaLoading ? (
-                <ActivityIndicator size="small" color={COLORS.primary} style={{ alignSelf: 'flex-start' }} />
+                <Text style={[styles.etaTitle, { color: COLORS.gray }]}>Calculating delivery time...</Text>
               ) : (
                 <Text style={styles.etaTitle}>
                   Delivery in {eta?.etaText || restaurantMeta?.deliveryTime || '30-45 min'}
@@ -303,7 +348,6 @@ export default function CartScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── Coupon ─────────────────────────────────────────── */}
         {selectedCoupon ? (
           <View style={styles.appliedCouponRow}>
             <Ionicons name="pricetag" size={18} color={COLORS.green} />
@@ -331,7 +375,6 @@ export default function CartScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        {/* Bill Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Bill Summary</Text>
           <View style={styles.billRow}>
@@ -374,15 +417,26 @@ export default function CartScreen({ navigation }) {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Checkout Button */}
       <View style={styles.checkoutContainer}>
-        <TouchableOpacity style={styles.checkoutBtn} onPress={goToCheckout}>
-          <Text style={styles.checkoutText}>Proceed to Checkout</Text>
-          <Text style={styles.checkoutPrice}>₹{toPay}</Text>
+        {!activeAddress && (
+          <Text style={styles.addressWarning}>⚠️ Please add a delivery address</Text>
+        )}
+        <TouchableOpacity
+          style={[styles.checkoutBtn, (!activeAddress || paying) && { opacity: 0.6 }]}
+          onPress={handlePlaceOrder}
+          disabled={!activeAddress || paying}
+        >
+          {paying ? (
+            <ButtonLoader label="Opening payment..." />
+          ) : (
+            <>
+              <Text style={styles.checkoutText}>Place Order</Text>
+              <Text style={styles.checkoutPrice}>₹{toPay}</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
-      {/* ── View all coupons — bottom sheet ─────────────────── */}
       {couponModalVisible && (
         <Modal transparent animationType="none" onRequestClose={closeCouponModal}>
           <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeCouponModal} />
@@ -398,7 +452,7 @@ export default function CartScreen({ navigation }) {
             </View>
 
             {couponsLoading ? (
-              <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 40 }} />
+              <AppLoader messages={LOADING_MESSAGES.coupons} />
             ) : coupons.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <Text style={{ fontSize: 40 }}>🏷️</Text>
@@ -431,7 +485,7 @@ export default function CartScreen({ navigation }) {
                       onPress={() => handleApplyCoupon(c.code)}
                     >
                       {applyingCode === c.code ? (
-                        <ActivityIndicator size="small" color={c.eligible ? '#fff' : COLORS.gray} />
+                        <ButtonLoader label="Applying..." color={c.eligible ? '#fff' : COLORS.gray} />
                       ) : (
                         <Text style={[styles.applyBtnText, !c.eligible && { color: COLORS.gray }]}>Apply</Text>
                       )}
@@ -444,6 +498,17 @@ export default function CartScreen({ navigation }) {
           </Animated.View>
         </Modal>
       )}
+
+      <StatusPopup
+        visible={cancelledVisible}
+        icon="🛑"
+        title="Order Cancelled"
+        message="You closed the payment screen before it finished. Your cart is safe — try again whenever you're ready."
+        primaryLabel="Try Again"
+        onPrimary={() => { setCancelledVisible(false); handlePlaceOrder(); }}
+        secondaryLabel="Go Back"
+        onSecondary={() => setCancelledVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -504,11 +569,11 @@ const styles = StyleSheet.create({
   savedText: { fontSize: 13, fontWeight: '700', color: COLORS.green },
 
   checkoutContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.border },
-  checkoutBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  addressWarning: { fontSize: 13, color: COLORS.warning, marginBottom: 8, textAlign: 'center', fontWeight: '600' },
+  checkoutBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4, alignItems: 'center', minHeight: 56 },
   checkoutText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   checkoutPrice: { color: '#fff', fontWeight: '800', fontSize: 16 },
 
-  // Coupon bottom sheet
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, maxHeight: SCREEN_HEIGHT * 0.85 },
   sheetHandleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },

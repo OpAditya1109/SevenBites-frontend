@@ -3,12 +3,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { COLORS } from '../utils/constants';
-
+import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 // Screens
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -73,7 +73,7 @@ export default function AppNavigator() {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <AppLoader messages={LOADING_MESSAGES.default} />
       </View>
     );
   }

@@ -54,7 +54,7 @@ export default function OrderHistoryScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+       <AppLoader messages={LOADING_MESSAGES.orders} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}

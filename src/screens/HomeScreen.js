@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, FlatList, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator,
+  StyleSheet, RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,17 +12,11 @@ import CategoryChip from '../components/CategoryChip';
 import HeroBanner from '../components/Herobanner';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 
 const ACTIVE_ADDRESS_KEY = 'sevenbites_active_address';
 
-const LOADING_MESSAGES = [
-  '🍕 Hunting down the best spots...',
-  '🛵 Our riders are warming up...',
-  '🧑‍🍳 Chefs are getting ready...',
-  '🌶️ Spicing things up for you...',
-  '🍔 Good food takes a second...',
-];
-const loadingMsg = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -119,10 +113,8 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>{loadingMsg}</Text>
-          </View>
+        <AppLoader messages={LOADING_MESSAGES.default} />
+
         ) : restaurants.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>🍽️</Text>

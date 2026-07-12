@@ -104,7 +104,7 @@ export default function SearchScreen({ navigation }) {
           )}
           ListEmptyComponent={
             loading ? (
-              <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+             <AppLoader messages={LOADING_MESSAGES.search} />
             ) : (
               <View style={styles.noResults}>
                 <Text style={styles.noResultsEmoji}>🔍</Text>

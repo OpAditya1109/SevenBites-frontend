@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
+import { ButtonLoader } from '../components/AppLoader';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -79,10 +80,9 @@ export default function RegisterScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.registerText}>Create Account</Text>}
+      <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} disabled={loading}>
+            {loading ? <ButtonLoader label="Creating account..." /> : <Text style={styles.registerText}>Create Account</Text>}
           </TouchableOpacity>
-
           <View style={styles.loginRow}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>

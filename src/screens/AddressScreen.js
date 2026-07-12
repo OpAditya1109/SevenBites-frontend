@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { COLORS, SPACING } from '../utils/constants';
 import { getUserAddresses, addAddress, deleteAddress, setDefaultAddress } from '../services/api';
+import { AppLoader, LOADING_MESSAGES, ButtonLoader } from '../components/AppLoader';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -220,7 +221,8 @@ export default function AddressScreen({ navigation, route }) {
 
         {/* ── Saved Addresses ───────────────────────────────── */}
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+                   <AppLoader messages={LOADING_MESSAGES.address} />
+
         ) : addresses.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📍</Text>
@@ -350,13 +352,13 @@ export default function AddressScreen({ navigation, route }) {
                   </View>
                 ))}
 
-                <TouchableOpacity
+               <TouchableOpacity
                   style={[styles.saveBtn, saving && { opacity: 0.7 }]}
                   onPress={handleSave}
                   disabled={saving}
                 >
                   {saving
-                    ? <ActivityIndicator color="#fff" />
+                    ? <ButtonLoader label="Saving..." />
                     : <Text style={styles.saveBtnText}>Save Address</Text>
                   }
                 </TouchableOpacity>

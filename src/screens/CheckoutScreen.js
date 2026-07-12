@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,14 +9,9 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { COLORS, ACTIVE_ADDRESS_KEY } from '../utils/constants';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { placeOrder, createRazorpayOrder, verifyPaymentAndPlaceOrder } from '../services/api';
-
-const PAYMENT_METHODS = [
-  { id: 'upi',    label: 'UPI / GPay / PhonePe',  icon: '📱' },
-  { id: 'card',   label: 'Credit / Debit Card',    icon: '💳' },
-  { id: 'cod',    label: 'Cash on Delivery',       icon: '💵' },
-  { id: 'wallet', label: 'Sevenbites Wallet',          icon: '👝' },
-];
+import { createRazorpayOrder, verifyPaymentAndPlaceOrder } from '../services/api';
+import { ButtonLoader } from '../components/AppLoader';
+import StatusPopup from '../components/StatusPopup';
 
 export default function CheckoutScreen({ route, navigation }) {
   const {
@@ -28,16 +23,14 @@ export default function CheckoutScreen({ route, navigation }) {
 
   const billItemTotal = itemTotal ?? totalPrice;
 
-  const [paymentMethod, setPaymentMethod] = useState('upi');
   const [activeAddress, setActiveAddress] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [cancelledVisible, setCancelledVisible] = useState(false);
 
-  // ── Load active address from AsyncStorage on mount ────────────
   useEffect(() => {
     loadAddress();
   }, []);
 
-  // ── Also reload when screen comes back into focus (user changed address) ──
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', loadAddress);
     return unsubscribe;
@@ -50,7 +43,6 @@ export default function CheckoutScreen({ route, navigation }) {
     } catch { /* silent */ }
   };
 
-  // ── Format address object → readable string for DB ───────────
   const formatAddressString = (addr) => {
     if (!addr) return null;
     return [addr.flatNo, addr.street, addr.landmark, addr.city, addr.state, addr.pincode]
@@ -60,7 +52,6 @@ export default function CheckoutScreen({ route, navigation }) {
 
   const addressLabel = formatAddressString(activeAddress);
 
-  // ── Open address picker in selection mode ─────────────────────
   const changeAddress = () => {
     navigation.navigate('Address', {
       onSelect: async (addr) => {
@@ -70,7 +61,9 @@ export default function CheckoutScreen({ route, navigation }) {
     });
   };
 
-  // ── Place order ───────────────────────────────────────────────
+  // ── Place order → straight to Razorpay, no in-app method picker ──
+  // Razorpay's own checkout already lists UPI / cards / wallets / netbanking,
+  // so we don't ask the user to pick a method twice.
   const handlePlaceOrder = async () => {
     if (!activeAddress) {
       Alert.alert('No Address', 'Please select a delivery address before placing your order.');
@@ -92,46 +85,22 @@ export default function CheckoutScreen({ route, navigation }) {
       gst,
       couponCode,
       discountAmount,
-      paymentMethod,
-      // Backend Order model stores deliveryAddress as a string
       deliveryAddress: addressLabel,
-      // Also send addressId for reference (optional, doesn't break anything if backend ignores it)
       addressId: activeAddress._id,
     };
 
-    if (paymentMethod === 'cod') {
-      await placeCodOrder(orderData);
-    } else {
-      await payWithRazorpay(orderData);
-    }
+    await payWithRazorpay(orderData);
   };
 
-  // ── Cash on Delivery — straight to order creation, no gateway ──
-  const placeCodOrder = async (orderData) => {
-    setLoading(true);
-    try {
-      const res = await placeOrder(orderData);
-      const order = res.data.data || res.data;
-      clearCart();
-      navigation.replace('OrderTracking', { orderId: order._id });
-    } catch (err) {
-      Alert.alert('Order Failed', err?.message || 'Could not place order. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── UPI / Card / Wallet — real Razorpay checkout ────────────────
   const payWithRazorpay = async (orderData) => {
     setLoading(true);
     try {
-      // Step 1: ask our backend to create a Razorpay order for this amount
       const rpRes = await createRazorpayOrder(grandTotal);
       const rpOrder = rpRes.data.data || rpRes.data;
 
       const options = {
         key: rpOrder.keyId,
-        amount: rpOrder.amount, // paise, from backend
+        amount: rpOrder.amount,
         currency: rpOrder.currency || 'INR',
         name: 'SevenBites',
         description: `Order from ${restaurantName}`,
@@ -144,10 +113,8 @@ export default function CheckoutScreen({ route, navigation }) {
         theme: { color: COLORS.primary },
       };
 
-      // Step 2: open the actual Razorpay checkout widget
       const paymentResult = await RazorpayCheckout.open(options);
 
-      // Step 3: verify the signature on our backend and only then save the order
       const verifyRes = await verifyPaymentAndPlaceOrder({
         razorpay_order_id: paymentResult.razorpay_order_id,
         razorpay_payment_id: paymentResult.razorpay_payment_id,
@@ -159,10 +126,9 @@ export default function CheckoutScreen({ route, navigation }) {
       clearCart();
       navigation.replace('OrderTracking', { orderId: order._id });
     } catch (err) {
-      // RazorpayCheckout.open() rejects with { code, description } when the
-      // user cancels or the payment fails — don't treat that as a server error.
+      // Cancel/dismiss from Razorpay → popup instead of a generic error alert
       if (err?.code === 0 || err?.description || err?.error) {
-        Alert.alert('Payment Cancelled', err?.description || 'Payment was not completed.');
+        setCancelledVisible(true);
       } else {
         Alert.alert('Payment Failed', err?.message || 'Could not complete payment. Please try again.');
       }
@@ -173,7 +139,6 @@ export default function CheckoutScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.black} />
@@ -183,8 +148,6 @@ export default function CheckoutScreen({ route, navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-
-        {/* ── Delivery Address ──────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="location" size={18} color={COLORS.primary} />
@@ -215,7 +178,6 @@ export default function CheckoutScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* ── Order Summary ─────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="restaurant" size={18} color={COLORS.primary} />
@@ -233,28 +195,18 @@ export default function CheckoutScreen({ route, navigation }) {
           ))}
         </View>
 
-        {/* ── Payment Method ────────────────────────────────────── */}
+        {/* No in-app payment method picker — Razorpay's own checkout
+            already lists UPI / cards / wallets / netbanking. */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="card" size={18} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <Text style={styles.sectionTitle}>Payment</Text>
           </View>
-          {PAYMENT_METHODS.map((pm) => (
-            <TouchableOpacity
-              key={pm.id}
-              style={[styles.paymentOption, paymentMethod === pm.id && styles.selectedPayment]}
-              onPress={() => setPaymentMethod(pm.id)}
-            >
-              <Text style={styles.paymentIcon}>{pm.icon}</Text>
-              <Text style={styles.paymentLabel}>{pm.label}</Text>
-              <View style={[styles.radio, paymentMethod === pm.id && styles.radioSelected]}>
-                {paymentMethod === pm.id && <View style={styles.radioDot} />}
-              </View>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.paymentHint}>
+            You'll choose UPI, card, or any other option on the next screen.
+          </Text>
         </View>
 
-        {/* ── Bill Summary ──────────────────────────────────────── */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>Bill Summary</Text>
           <View style={styles.billRow}>
@@ -290,7 +242,6 @@ export default function CheckoutScreen({ route, navigation }) {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
       <View style={styles.footer}>
         {!activeAddress && (
           <Text style={styles.addressWarning}>⚠️ Please add a delivery address</Text>
@@ -301,7 +252,7 @@ export default function CheckoutScreen({ route, navigation }) {
           disabled={loading || !activeAddress}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ButtonLoader label="Opening payment..." />
           ) : (
             <>
               <Text style={styles.placeOrderText}>Place Order</Text>
@@ -310,6 +261,17 @@ export default function CheckoutScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
       </View>
+
+      <StatusPopup
+        visible={cancelledVisible}
+        icon="🛑"
+        title="Order Cancelled"
+        message="You closed the payment screen before it finished. Your cart is safe — try again whenever you're ready."
+        primaryLabel="Try Again"
+        onPrimary={() => { setCancelledVisible(false); handlePlaceOrder(); }}
+        secondaryLabel="Go Back"
+        onSecondary={() => setCancelledVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -334,13 +296,7 @@ const styles = StyleSheet.create({
   orderItemQty: { fontSize: 13, fontWeight: '700', color: COLORS.gray, width: 24 },
   orderItemName: { flex: 1, fontSize: 14, color: COLORS.black },
   orderItemPrice: { fontSize: 14, fontWeight: '600', color: COLORS.black },
-  paymentOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, marginBottom: 8, gap: 12 },
-  selectedPayment: { borderColor: COLORS.primary, backgroundColor: '#fff5f5' },
-  paymentIcon: { fontSize: 20 },
-  paymentLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.black },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
-  radioSelected: { borderColor: COLORS.primary },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary },
+  paymentHint: { fontSize: 13, color: COLORS.gray },
   billRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   billLabel: { fontSize: 14, color: COLORS.gray },
   billValue: { fontSize: 14, fontWeight: '600', color: COLORS.black },

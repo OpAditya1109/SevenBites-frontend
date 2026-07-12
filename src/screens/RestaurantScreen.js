@@ -9,6 +9,7 @@ import { COLORS, SPACING } from '../utils/constants';
 import { getMenuByRestaurant } from '../services/api';
 import { useCart } from '../context/CartContext';
 import FoodItemCard from '../components/FoodItemCard';
+import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 
 const isImageUrl = (val) => typeof val === 'string' && /^https?:\/\//.test(val);
 
@@ -187,8 +188,8 @@ export default function RestaurantScreen({ route, navigation }) {
 
         {/* Menu */}
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-        ) : (
+<AppLoader messages={LOADING_MESSAGES.restaurant} />       
+ ) : (
           <>
             {/* Category Tabs */}
             <ScrollView
