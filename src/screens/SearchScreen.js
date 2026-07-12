@@ -1,45 +1,96 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
-import { searchRestaurants } from '../services/api';
+import { searchAll } from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
-import { MOCK_RESTAURANTS } from './HomeScreen';
+import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 
 const RECENT_SEARCHES = ['Biryani', 'Pizza near me', 'Burger King', 'Chinese food'];
 const TRENDING = ['🔥 Pani Puri', '🍕 Pizza', '🍛 Biryani', '🍔 Burger', '🥗 Salad', '🍰 Cake'];
 
+const isImageUrl = (val) => typeof val === 'string' && /^https?:\/\//.test(val);
+
+// A single dish/food-item search result — tapping it opens the restaurant it belongs to.
+function DishResultRow({ item, onPress }) {
+  return (
+    <TouchableOpacity style={styles.dishRow} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.dishImageWrap}>
+        {isImageUrl(item.image) ? (
+          <Image source={{ uri: item.image }} style={styles.dishImage} resizeMode="cover" />
+        ) : (
+          <Text style={styles.dishEmoji}>🍽️</Text>
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.dishName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.dishRestaurant} numberOfLines={1}>{item.restaurant?.name}</Text>
+        <Text style={styles.dishPrice}>₹{item.price}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={COLORS.gray} />
+    </TouchableOpacity>
+  );
+}
+
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+  const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const debounceRef = useRef(null);
 
-  const handleSearch = useCallback(async (text) => {
-    setQuery(text);
+  const runSearch = useCallback(async (text) => {
     if (text.trim().length < 2) {
-      setResults([]);
+      setRestaurants([]);
+      setDishes([]);
       setSearched(false);
+      setLoading(false);
       return;
     }
     setLoading(true);
     setSearched(true);
     try {
-      const res = await searchRestaurants(text);
-      setResults(res.data.data || res.data);
+      const { restaurants: r, menuItems: d } = await searchAll(text);
+      setRestaurants(r);
+      setDishes(d);
     } catch {
-      setResults(MOCK_RESTAURANTS.filter((r) =>
-        r.name.toLowerCase().includes(text.toLowerCase()) ||
-        r.cuisine.some((c) => c.toLowerCase().includes(text.toLowerCase()))
-      ));
+      setRestaurants([]);
+      setDishes([]);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Debounced as-you-type search — waits 350ms after the last keystroke before
+  // hitting the backend, so a full word doesn't fire 6 separate requests.
+  const handleChangeText = useCallback((text) => {
+    setQuery(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => runSearch(text), 350);
+  }, [runSearch]);
+
+  const handleQuickSearch = useCallback((text) => {
+    setQuery(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    runSearch(text);
+  }, [runSearch]);
+
+  const clearSearch = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setQuery('');
+    setRestaurants([]);
+    setDishes([]);
+    setSearched(false);
+  };
+
+  const openRestaurant = (restaurant) => navigation.navigate('Restaurant', { restaurant });
+
+  const hasResults = restaurants.length > 0 || dishes.length > 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -54,12 +105,12 @@ export default function SearchScreen({ navigation }) {
             style={styles.searchInput}
             placeholder="Search restaurants, dishes..."
             value={query}
-            onChangeText={handleSearch}
+            onChangeText={handleChangeText}
             autoFocus
             placeholderTextColor={COLORS.placeholder}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearched(false); }}>
+            <TouchableOpacity onPress={clearSearch}>
               <Ionicons name="close-circle" size={18} color={COLORS.gray} />
             </TouchableOpacity>
           )}
@@ -71,7 +122,7 @@ export default function SearchScreen({ navigation }) {
           {/* Recent Searches */}
           <Text style={styles.sectionTitle}>Recent Searches</Text>
           {RECENT_SEARCHES.map((s) => (
-            <TouchableOpacity key={s} style={styles.recentItem} onPress={() => handleSearch(s)}>
+            <TouchableOpacity key={s} style={styles.recentItem} onPress={() => handleQuickSearch(s)}>
               <Ionicons name="time-outline" size={16} color={COLORS.gray} />
               <Text style={styles.recentText}>{s}</Text>
               <Ionicons name="arrow-forward" size={14} color={COLORS.gray} />
@@ -85,35 +136,60 @@ export default function SearchScreen({ navigation }) {
               <TouchableOpacity
                 key={t}
                 style={styles.trendingChip}
-                onPress={() => handleSearch(t.split(' ')[1] || t)}
+                onPress={() => handleQuickSearch(t.split(' ')[1] || t)}
               >
                 <Text style={styles.trendingText}>{t}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
+      ) : loading ? (
+        <AppLoader messages={LOADING_MESSAGES.search} />
+      ) : !hasResults ? (
+        <View style={styles.noResults}>
+          <Text style={styles.noResultsEmoji}>🔍</Text>
+          <Text style={styles.noResultsTitle}>No results for "{query}"</Text>
+          <Text style={styles.noResultsSubtitle}>Try a different search term</Text>
+        </View>
       ) : (
         <FlatList
-          data={results}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => (
-            <RestaurantCard
-              restaurant={item}
-              onPress={() => navigation.navigate('Restaurant', { restaurant: item })}
-            />
-          )}
-          ListEmptyComponent={
-            loading ? (
-             <AppLoader messages={LOADING_MESSAGES.search} />
-            ) : (
-              <View style={styles.noResults}>
-                <Text style={styles.noResultsEmoji}>🔍</Text>
-                <Text style={styles.noResultsTitle}>No results for "{query}"</Text>
-                <Text style={styles.noResultsSubtitle}>Try a different search term</Text>
-              </View>
-            )
+          data={[]}
+          keyExtractor={() => 'x'}
+          renderItem={null}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
+          ListHeaderComponent={
+            <View>
+              {restaurants.length > 0 && (
+                <View style={{ marginBottom: 8 }}>
+                  <Text style={styles.resultsSectionTitle}>
+                    Restaurants ({restaurants.length})
+                  </Text>
+                  {restaurants.map((r) => (
+                    <RestaurantCard
+                      key={r._id}
+                      restaurant={r}
+                      onPress={() => openRestaurant(r)}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {dishes.length > 0 && (
+                <View>
+                  <Text style={styles.resultsSectionTitle}>
+                    Dishes ({dishes.length})
+                  </Text>
+                  {dishes.map((d) => (
+                    <DishResultRow
+                      key={d._id}
+                      item={d}
+                      onPress={() => openRestaurant(d.restaurant)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
           }
-          contentContainerStyle={{ paddingTop: 8 }}
         />
       )}
     </SafeAreaView>
@@ -127,6 +203,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 15, color: COLORS.black },
   content: { padding: 16 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.black, marginBottom: 12 },
+  resultsSectionTitle: { fontSize: 15, fontWeight: '800', color: COLORS.black, paddingHorizontal: 16, marginBottom: 10, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
   recentItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   recentText: { flex: 1, fontSize: 14, color: COLORS.darkGray },
   trendingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -136,4 +213,17 @@ const styles = StyleSheet.create({
   noResultsEmoji: { fontSize: 48 },
   noResultsTitle: { fontSize: 18, fontWeight: '700', color: COLORS.black },
   noResultsSubtitle: { fontSize: 14, color: COLORS.gray },
+
+  // Dish result row
+  dishRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 10,
+    borderRadius: 12, padding: 10, borderWidth: 1, borderColor: COLORS.border,
+  },
+  dishImageWrap: { width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  dishImage: { width: '100%', height: '100%' },
+  dishEmoji: { fontSize: 24 },
+  dishName: { fontSize: 14, fontWeight: '700', color: COLORS.black },
+  dishRestaurant: { fontSize: 12, color: COLORS.gray, marginTop: 2 },
+  dishPrice: { fontSize: 13, fontWeight: '700', color: COLORS.primary, marginTop: 3 },
 });

@@ -70,8 +70,8 @@ export function ButtonLoader({ label = 'Please wait...', color = '#fff' }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 40 },
-  text: { fontSize: 15, color: COLORS.gray, fontWeight: '500', textAlign: 'center', paddingHorizontal: 32 },
+  wrap: { alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 48 },
+  text: { fontSize: 17, lineHeight: 24, color: COLORS.darkGray, fontWeight: '700', textAlign: 'center', paddingHorizontal: 28 },
   buttonWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonText: { fontSize: 15, fontWeight: '700' },
 });

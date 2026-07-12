@@ -79,13 +79,26 @@ export const getRestaurantById = async (id) => {
   return { data: { success: true, data: adaptRestaurant({ ...res.data.restaurant, isOpenNow: res.data.isOpenNow }) } };
 };
 
-export const searchRestaurants = async (query) => {
-  const res = await api.get('/public/restaurants');
-  const q = (query || '').toLowerCase();
-  const list = (res.data.restaurants || [])
-    .filter((r) => r.restaurantName?.toLowerCase().includes(q) || r.cuisineType?.toLowerCase().includes(q))
-    .map(adaptRestaurant);
-  return { data: { success: true, data: list } };
+// Combined search — hits the backend's /search route which matches BOTH restaurants
+// (name/cuisine/tags) AND individual dishes (menu item name) in one call.
+// Returns { restaurants: [...], menuItems: [...] }, each menu item carrying its
+// parent restaurant (already adapted) so a dish result can navigate straight to
+// the RestaurantScreen the same way a RestaurantCard does.
+export const searchAll = async (query) => {
+  const q = (query || '').trim();
+  if (q.length < 2) return { restaurants: [], menuItems: [] };
+
+  const res = await api.get('/public/restaurants/search', { params: { q } });
+
+  const restaurants = (res.data.restaurants || []).map(adaptRestaurant);
+  const menuItems = (res.data.menuItems || [])
+    .filter((item) => item.restaurant) // safety: backend already drops these, but just in case
+    .map((item) => ({
+      ...adaptMenuItem(item),
+      restaurant: adaptRestaurant(item.restaurant),
+    }));
+
+  return { restaurants, menuItems };
 };
 
 export const getRestaurantsByCategory = (category) => getRestaurants({ category });
