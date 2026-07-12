@@ -11,7 +11,7 @@ import { getUserAddresses, addAddress, deleteAddress, setDefaultAddress } from '
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const EMPTY_FORM = { type: 'Home', flatNo: '', street: '', landmark: '', city: '', state: '', pincode: '' };
+const EMPTY_FORM = { type: 'Home', flatNo: '', street: '', landmark: '', city: '', state: '', pincode: '', latitude: null, longitude: null };
 const LABEL_OPTIONS = ['Home', 'Work', 'Other'];
 const LABEL_ICONS = { Home: 'home', Work: 'briefcase', Other: 'location' };
 
@@ -95,9 +95,11 @@ export default function AddressScreen({ navigation, route }) {
           city: geocode.city || geocode.subregion || '',
           state: geocode.region || '',
           pincode: geocode.postalCode || '',
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
         });
       } else {
-        openSheet();
+        openSheet({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       }
     } catch (err) {
       Alert.alert('Location Error', 'Could not fetch location. Please enter manually.');

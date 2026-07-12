@@ -6,12 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RazorpayCheckout from 'react-native-razorpay';
-import { COLORS } from '../utils/constants';
+import { COLORS, ACTIVE_ADDRESS_KEY } from '../utils/constants';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { placeOrder, createRazorpayOrder, verifyPaymentAndPlaceOrder } from '../services/api';
-
-const ACTIVE_ADDRESS_KEY = 'sevenbites_active_address';
 
 const PAYMENT_METHODS = [
   { id: 'upi',    label: 'UPI / GPay / PhonePe',  icon: '📱' },
@@ -21,9 +19,14 @@ const PAYMENT_METHODS = [
 ];
 
 export default function CheckoutScreen({ route, navigation }) {
-  const { grandTotal, deliveryFee } = route.params;
+  const {
+    grandTotal, deliveryFee, itemTotal, platformFee = 0, gst = 0,
+    discountAmount = 0, couponCode = '', estimatedDeliveryTime,
+  } = route.params;
   const { items, restaurantId, restaurantName, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
+
+  const billItemTotal = itemTotal ?? totalPrice;
 
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [activeAddress, setActiveAddress] = useState(null);
@@ -83,7 +86,12 @@ export default function CheckoutScreen({ route, navigation }) {
         quantity: i.quantity,
       })),
       totalAmount: grandTotal,
+      itemTotal: billItemTotal,
       deliveryFee,
+      platformFee,
+      gst,
+      couponCode,
+      discountAmount,
       paymentMethod,
       // Backend Order model stores deliveryAddress as a string
       deliveryAddress: addressLabel,
@@ -212,6 +220,9 @@ export default function CheckoutScreen({ route, navigation }) {
           <View style={styles.sectionHeader}>
             <Ionicons name="restaurant" size={18} color={COLORS.primary} />
             <Text style={styles.sectionTitle}>{restaurantName}</Text>
+            {!!estimatedDeliveryTime && (
+              <Text style={styles.etaBadge}>⏱ {estimatedDeliveryTime}</Text>
+            )}
           </View>
           {items.map((item) => (
             <View key={item._id} style={styles.orderItem}>
@@ -248,20 +259,30 @@ export default function CheckoutScreen({ route, navigation }) {
           <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>Bill Summary</Text>
           <View style={styles.billRow}>
             <Text style={styles.billLabel}>Item Total</Text>
-            <Text style={styles.billValue}>₹{totalPrice.toFixed(0)}</Text>
+            <Text style={styles.billValue}>₹{billItemTotal.toFixed(0)}</Text>
           </View>
           <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Delivery Fee</Text>
+            <Text style={styles.billLabel}>Delivery Partner Fee</Text>
             <Text style={[styles.billValue, deliveryFee === 0 && { color: COLORS.green }]}>
               {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
             </Text>
           </View>
           <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Taxes & Charges (5%)</Text>
-            <Text style={styles.billValue}>₹{Math.round(totalPrice * 0.05)}</Text>
+            <Text style={styles.billLabel}>Platform Fee</Text>
+            <Text style={styles.billValue}>₹{platformFee}</Text>
           </View>
+          <View style={styles.billRow}>
+            <Text style={styles.billLabel}>GST</Text>
+            <Text style={styles.billValue}>₹{gst}</Text>
+          </View>
+          {discountAmount > 0 && (
+            <View style={styles.billRow}>
+              <Text style={[styles.billLabel, { color: COLORS.green }]}>Coupon Discount ({couponCode})</Text>
+              <Text style={[styles.billValue, { color: COLORS.green }]}>− ₹{discountAmount}</Text>
+            </View>
+          )}
           <View style={[styles.billRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>To Pay</Text>
             <Text style={styles.totalValue}>₹{grandTotal}</Text>
           </View>
         </View>
@@ -299,7 +320,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.black },
   section: { backgroundColor: COLORS.white, margin: 16, borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, marginBottom: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.black },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.black, flexShrink: 1 },
+  etaBadge: { marginLeft: 'auto', fontSize: 12, fontWeight: '700', color: COLORS.primary, backgroundColor: '#fff5f5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   addressBlock: { gap: 4, marginBottom: 8 },
   addressTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   addressType: { fontSize: 13, fontWeight: '700', color: COLORS.primary },

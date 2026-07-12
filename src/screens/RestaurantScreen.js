@@ -44,6 +44,8 @@ export default function RestaurantScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef(null);
+  const sectionOffsets = useRef({});
 
   useEffect(() => {
     fetchMenu();
@@ -85,6 +87,14 @@ export default function RestaurantScreen({ route, navigation }) {
 
   const headerOpacity = scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, 1], extrapolate: 'clamp' });
 
+  const scrollToCategory = (idx) => {
+    setActiveCategory(idx);
+    const y = sectionOffsets.current[idx];
+    if (y !== undefined && scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: Math.max(y - 60, 0), animated: true });
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Animated Header */}
@@ -112,6 +122,7 @@ export default function RestaurantScreen({ route, navigation }) {
       </View>
 
       <Animated.ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
@@ -190,7 +201,7 @@ export default function RestaurantScreen({ route, navigation }) {
                 <TouchableOpacity
                   key={section._id}
                   style={[styles.categoryTab, activeCategory === idx && styles.activeCategoryTab]}
-                  onPress={() => setActiveCategory(idx)}
+                  onPress={() => scrollToCategory(idx)}
                 >
                   <Text style={[styles.categoryTabText, activeCategory === idx && styles.activeCategoryTabText]}>
                     {section.category}
@@ -201,7 +212,10 @@ export default function RestaurantScreen({ route, navigation }) {
 
             {/* Menu Items */}
             {menu.map((section, idx) => (
-              <View key={section._id}>
+              <View
+                key={section._id}
+                onLayout={(e) => { sectionOffsets.current[idx] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.menuCategory}>{section.category}</Text>
                 {section.items.map((item) => (
                   <FoodItemCard

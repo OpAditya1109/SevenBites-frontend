@@ -32,6 +32,9 @@ function adaptRestaurant(r) {
     minOrder: r.minOrder ?? 0,
     image: r.coverImageUrl || r.logoUrl || '',
     address: { street: r.address, city: r.city, pincode: r.pincode },
+    // NEW — exact restaurant coordinates, needed for distance-based delivery ETA on Cart screen
+    latitude: r.latitude ?? null,
+    longitude: r.longitude ?? null,
     isOpen: r.isOpenNow !== undefined ? r.isOpenNow : true,
     isVeg: false,
     offer: '',
@@ -123,5 +126,19 @@ export const setDefaultAddress = (id) => api.put(`/address/${id}/default`);
 // ── Reviews ───────────────────────────────────────────
 export const addReview = (data) => api.post('/reviews', data);
 export const getReviewsByRestaurant = (restaurantId) => api.get(`/reviews/${restaurantId}`);
+
+// ── Coupons ───────────────────────────────────────────
+// "View all coupons" list — every live coupon annotated with eligibility for this cart.
+export const getActiveCoupons = (restaurantId, orderValue) =>
+  api.get('/coupons', { params: { restaurantId, orderValue } });
+// Validates + applies a single coupon code against the current cart.
+export const applyCoupon = (code, restaurantId, orderValue) =>
+  api.post('/coupons/apply', { code, restaurantId, orderValue });
+
+// ── Delivery ETA ──────────────────────────────────────
+// Distance-based delivery estimate using the restaurant's exact saved location
+// vs the customer's exact address pin (both lat/lng).
+export const getDeliveryEstimate = (restaurantId, lat, lng) =>
+  api.get(`/public/restaurants/${restaurantId}/delivery-estimate`, { params: { lat, lng } });
 
 export default api;

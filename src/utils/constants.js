@@ -48,6 +48,13 @@ export const SPACING = {
 
 export const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl ?? 'http://localhost:5001/api';
 
+// ── Billing ───────────────────────────────────────────
+export const PLATFORM_FEE = 6; // flat, per order
+export const GST_RATE = 0.05; // 5% on item total
+export const FREE_DELIVERY_THRESHOLD = 299; // item total ≥ this → delivery partner fee waived
+export const DEFAULT_DELIVERY_FEE = 49; // fallback if a restaurant hasn't set its own delivery fee
+export const ACTIVE_ADDRESS_KEY = 'sevenbites_active_address';
+
 export const FOOD_CATEGORIES = [
   { id: '1', name: 'Pizza', icon: '🍕' },
   { id: '2', name: 'Burger', icon: '🍔' },
