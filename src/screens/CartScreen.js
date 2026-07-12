@@ -1,11 +1,13 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../utils/constants';
 import { useCart } from '../context/CartContext';
+
+const isImageUrl = (val) => typeof val === 'string' && /^https?:\/\//.test(val);
 
 export default function CartScreen({ navigation }) {
   const { items, totalItems, totalPrice, restaurantName, addItem, removeItem, clearCart, restaurantId } = useCart();
@@ -59,7 +61,11 @@ export default function CartScreen({ navigation }) {
           {items.map((item) => (
             <View key={item._id} style={styles.cartItem}>
               <View style={styles.cartItemLeft}>
-                <Text style={styles.cartItemEmoji}>{item.image}</Text>
+                {isImageUrl(item.image) ? (
+                  <Image source={{ uri: item.image }} style={styles.cartItemImage} resizeMode="cover" />
+                ) : (
+                  <Text style={styles.cartItemEmoji}>{item.image || '🍽️'}</Text>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cartItemName}>{item.name}</Text>
                   <Text style={styles.cartItemPrice}>₹{(item.price * item.quantity).toFixed(0)}</Text>
@@ -152,6 +158,7 @@ const styles = StyleSheet.create({
   cartItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   cartItemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
   cartItemEmoji: { fontSize: 28 },
+  cartItemImage: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#f5f5f5' },
   cartItemName: { fontSize: 14, fontWeight: '600', color: COLORS.black, marginBottom: 2 },
   cartItemPrice: { fontSize: 13, color: COLORS.gray },
   counterRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 8, overflow: 'hidden' },

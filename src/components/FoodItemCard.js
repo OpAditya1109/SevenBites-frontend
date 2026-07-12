@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
+
+const isImageUrl = (val) => typeof val === 'string' && /^https?:\/\//.test(val);
 
 export default function FoodItemCard({ item, quantity, onAdd, onRemove }) {
   return (
@@ -28,7 +30,11 @@ export default function FoodItemCard({ item, quantity, onAdd, onRemove }) {
 
       <View style={styles.right}>
         <View style={styles.imageBox}>
-          <Text style={styles.emoji}>{item.image}</Text>
+          {isImageUrl(item.image) ? (
+            <Image source={{ uri: item.image }} style={styles.itemImage} resizeMode="cover" />
+          ) : (
+            <Text style={styles.emoji}>{item.image || '🍽️'}</Text>
+          )}
         </View>
         {item.inStock && (
           quantity === 0 ? (
@@ -68,7 +74,8 @@ const styles = StyleSheet.create({
   description: { fontSize: 12, color: COLORS.gray, lineHeight: 18 },
   outOfStockText: { fontSize: 12, color: COLORS.primary, fontWeight: '600', marginTop: 6 },
   right: { alignItems: 'center', gap: 8 },
-  imageBox: { width: 100, height: 80, backgroundColor: '#f5f5f5', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  imageBox: { width: 100, height: 80, backgroundColor: '#f5f5f5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  itemImage: { width: '100%', height: '100%' },
   emoji: { fontSize: 36 },
   addBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6, gap: 2 },
   addBtnText: { fontSize: 13, fontWeight: '800', color: COLORS.primary },

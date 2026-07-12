@@ -5,9 +5,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RazorpayCheckout from 'react-native-razorpay';
 import { COLORS } from '../utils/constants';
 import { useCart } from '../context/CartContext';
-import { placeOrder } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { placeOrder, createRazorpayOrder, verifyPaymentAndPlaceOrder } from '../services/api';
 
 const ACTIVE_ADDRESS_KEY = 'sevenbites_active_address';
 
@@ -21,6 +23,7 @@ const PAYMENT_METHODS = [
 export default function CheckoutScreen({ route, navigation }) {
   const { grandTotal, deliveryFee } = route.params;
   const { items, restaurantId, restaurantName, totalPrice, clearCart } = useCart();
+  const { user } = useAuth();
 
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [activeAddress, setActiveAddress] = useState(null);
@@ -71,36 +74,89 @@ export default function CheckoutScreen({ route, navigation }) {
       return;
     }
 
+    const orderData = {
+      restaurantId,
+      items: items.map((i) => ({
+        menuItemId: i._id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+      })),
+      totalAmount: grandTotal,
+      deliveryFee,
+      paymentMethod,
+      // Backend Order model stores deliveryAddress as a string
+      deliveryAddress: addressLabel,
+      // Also send addressId for reference (optional, doesn't break anything if backend ignores it)
+      addressId: activeAddress._id,
+    };
+
+    if (paymentMethod === 'cod') {
+      await placeCodOrder(orderData);
+    } else {
+      await payWithRazorpay(orderData);
+    }
+  };
+
+  // ── Cash on Delivery — straight to order creation, no gateway ──
+  const placeCodOrder = async (orderData) => {
     setLoading(true);
     try {
-      const orderData = {
-        restaurantId,
-        items: items.map((i) => ({
-          menuItemId: i._id,
-          name: i.name,
-          price: i.price,
-          quantity: i.quantity,
-        })),
-        totalAmount: grandTotal,
-        deliveryFee,
-        paymentMethod,
-        // Backend Order model stores deliveryAddress as a string
-        deliveryAddress: addressLabel,
-        // Also send addressId for reference (optional, doesn't break anything if backend ignores it)
-        addressId: activeAddress._id,
-      };
-
       const res = await placeOrder(orderData);
       const order = res.data.data || res.data;
       clearCart();
       navigation.replace('OrderTracking', { orderId: order._id });
     } catch (err) {
-      // Fallback demo mode
-      if (__DEV__) {
-        clearCart();
-        navigation.replace('OrderTracking', { orderId: 'ORD' + Date.now() });
+      Alert.alert('Order Failed', err?.message || 'Could not place order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── UPI / Card / Wallet — real Razorpay checkout ────────────────
+  const payWithRazorpay = async (orderData) => {
+    setLoading(true);
+    try {
+      // Step 1: ask our backend to create a Razorpay order for this amount
+      const rpRes = await createRazorpayOrder(grandTotal);
+      const rpOrder = rpRes.data.data || rpRes.data;
+
+      const options = {
+        key: rpOrder.keyId,
+        amount: rpOrder.amount, // paise, from backend
+        currency: rpOrder.currency || 'INR',
+        name: 'SevenBites',
+        description: `Order from ${restaurantName}`,
+        order_id: rpOrder.orderId,
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: { color: COLORS.primary },
+      };
+
+      // Step 2: open the actual Razorpay checkout widget
+      const paymentResult = await RazorpayCheckout.open(options);
+
+      // Step 3: verify the signature on our backend and only then save the order
+      const verifyRes = await verifyPaymentAndPlaceOrder({
+        razorpay_order_id: paymentResult.razorpay_order_id,
+        razorpay_payment_id: paymentResult.razorpay_payment_id,
+        razorpay_signature: paymentResult.razorpay_signature,
+        orderData,
+      });
+      const order = verifyRes.data.data || verifyRes.data;
+
+      clearCart();
+      navigation.replace('OrderTracking', { orderId: order._id });
+    } catch (err) {
+      // RazorpayCheckout.open() rejects with { code, description } when the
+      // user cancels or the payment fails — don't treat that as a server error.
+      if (err?.code === 0 || err?.description || err?.error) {
+        Alert.alert('Payment Cancelled', err?.description || 'Payment was not completed.');
       } else {
-        Alert.alert('Order Failed', err?.message || 'Could not place order. Please try again.');
+        Alert.alert('Payment Failed', err?.message || 'Could not complete payment. Please try again.');
       }
     } finally {
       setLoading(false);

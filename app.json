@@ -56,7 +56,7 @@
       "expo-font"
     ],
     "extra": {
-      "apiBaseUrl": "https://sevenbites-backend.onrender.com/api",
+      "apiBaseUrl": "https://sevenbites-restaurant-backend.onrender.com/api",
       "eas": {
         "projectId": "14365027-eead-4c32-a015-d4bb56057536"
       }

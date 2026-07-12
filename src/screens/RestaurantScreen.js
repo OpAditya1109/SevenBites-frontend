@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, FlatList, TouchableOpacity,
-  StyleSheet, Animated, ActivityIndicator, Alert,
+  StyleSheet, Animated, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { COLORS, SPACING } from '../utils/constants';
 import { getMenuByRestaurant } from '../services/api';
 import { useCart } from '../context/CartContext';
 import FoodItemCard from '../components/FoodItemCard';
+
+const isImageUrl = (val) => typeof val === 'string' && /^https?:\/\//.test(val);
 
 // Mock menu data
 const MOCK_MENU = [
@@ -117,7 +119,11 @@ export default function RestaurantScreen({ route, navigation }) {
         {/* Restaurant Hero */}
         <View style={styles.hero}>
           <View style={styles.heroImageBg}>
-            <Text style={styles.heroEmoji}>{restaurant.image}</Text>
+            {isImageUrl(restaurant.image) ? (
+              <Image source={{ uri: restaurant.image }} style={styles.heroImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.heroEmoji}>{restaurant.image || '🍽️'}</Text>
+            )}
           </View>
         </View>
 
@@ -240,6 +246,7 @@ const styles = StyleSheet.create({
   backCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3, marginTop: 50 },
   hero: { height: 200, backgroundColor: '#f0f0f0' },
   heroImageBg: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff5f5' },
+  heroImage: { width: '100%', height: '100%' },
   heroEmoji: { fontSize: 80 },
   infoCard: { backgroundColor: COLORS.white, marginHorizontal: 0, padding: 16, borderBottomWidth: 8, borderBottomColor: COLORS.background },
   infoHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
