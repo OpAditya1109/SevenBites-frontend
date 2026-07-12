@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
 import { getOrderById, connectOrderSocket, disconnectOrderSocket } from '../services/api';
 import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
+import OrderTrackingMap from '../components/OrderTrackingMap';
 
 // Matches the backend's real status machine (models/Order.js + restaurantOrderController.js)
 const ORDER_STEPS = [
@@ -76,11 +77,21 @@ export default function OrderTrackingScreen({ route, navigation }) {
     };
     socket.on('order_status_updated', onUpdate);
 
+    // Live rider GPS pings (see backend PATCH /orders/:id/rider-location) —
+    // once the delivery-partner app exists it'll emit this and the map's
+    // rider marker will glide to the new spot without a full refetch.
+    const onLocationUpdate = (partial) => {
+      if (partial?._id !== orderId) return;
+      setOrder((prev) => (prev ? { ...prev, ...partial } : prev));
+    };
+    socket.on('order_location_updated', onLocationUpdate);
+
     // Light fallback poll in case the socket connection drops silently
     const poll = setInterval(fetchOrder, 20000);
 
     return () => {
       socket.off('order_status_updated', onUpdate);
+      socket.off('order_location_updated', onLocationUpdate);
       disconnectOrderSocket();
       clearInterval(poll);
     };
@@ -183,15 +194,34 @@ export default function OrderTrackingScreen({ route, navigation }) {
 
         <Text style={styles.orderId}>Order #{order._id.toString().slice(-8).toUpperCase()}</Text>
 
-        {/* Restaurant → address route, connected with a dotted line (Zomato-style), driven by real progress */}
+        {/* Real map: restaurant → customer, dotted route (Zomato-style). Rider marker
+            appears automatically once order.riderLatitude/Longitude are set (out for delivery). */}
         {!isCancelled && (
           <View style={styles.routeCard}>
+            <OrderTrackingMap
+              restaurant={{
+                latitude: order.restaurantLatitude ?? order.restaurantId?.latitude ?? null,
+                longitude: order.restaurantLongitude ?? order.restaurantId?.longitude ?? null,
+                name: restaurantName,
+              }}
+              destination={{
+                latitude: order.deliveryLatitude ?? null,
+                longitude: order.deliveryLongitude ?? null,
+                address: order.deliveryAddress,
+              }}
+              rider={
+                currentStepIndex >= 3 && order.riderLatitude && order.riderLongitude
+                  ? { latitude: order.riderLatitude, longitude: order.riderLongitude, name: order.riderName }
+                  : null
+              }
+            />
+
             <View style={styles.routeRow}>
               <View style={styles.routeIconCol}>
                 <View style={[styles.routeDot, styles.routeDotFilled]}>
                   <Ionicons name="restaurant" size={14} color="#fff" />
                 </View>
-                <DottedLine active={currentStepIndex >= 3} length={64} />
+                <DottedLine active={currentStepIndex >= 3} length={40} />
               </View>
               <View style={styles.routeTextCol}>
                 <Text style={styles.routeLabel}>{restaurantName}</Text>

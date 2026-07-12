@@ -87,6 +87,9 @@ export default function CheckoutScreen({ route, navigation }) {
       discountAmount,
       deliveryAddress: addressLabel,
       addressId: activeAddress._id,
+      // NEW — needed so the order-tracking screen can render a real map
+      deliveryLatitude: activeAddress.latitude ?? null,
+      deliveryLongitude: activeAddress.longitude ?? null,
     };
 
     await payWithRazorpay(orderData);
