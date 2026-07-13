@@ -86,9 +86,9 @@ export default function AppNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <AppLoader messages={LOADING_MESSAGES.default} />
-      </View>
+     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.darkBg }}>
+      <AppLoader messages={LOADING_MESSAGES.default} style={{ backgroundColor: 'transparent' }} />
+    </View> 
     );
   }
 

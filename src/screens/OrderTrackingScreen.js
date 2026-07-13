@@ -132,7 +132,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
     };
     socket.on('order_location_updated', onLocationUpdate);
 
-    const poll = setInterval(fetchOrder, 20000);
+    const poll = setInterval(fetchOrder, 15000);
 
     return () => {
       socket.off('order_status_updated', onUpdate);
@@ -143,7 +143,9 @@ export default function OrderTrackingScreen({ route, navigation }) {
   }, [orderId, fetchOrder]);
 
   useEffect(() => {
-    const tick = setInterval(() => setNow(Date.now()), 30000);
+    // Ticks every 15s so the on-screen countdown feels live rather than
+    // jumping in big steps.
+    const tick = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(tick);
   }, []);
 
@@ -214,13 +216,59 @@ export default function OrderTrackingScreen({ route, navigation }) {
     );
   }
 
+  // The restaurant hasn't accepted/confirmed the order yet — don't show a
+  // ticking ETA in this state, since we don't actually have a real basis for
+  // "reach time" until they've accepted and prep has actually started.
+  const awaitingAcceptance = !isCancelled && order.status === 'placed';
+
   const etaRange = parseEtaMinutes(order.estimatedDeliveryTime);
   const placedAt = order.createdAt ? new Date(order.createdAt).getTime() : null;
-  const minutesSincePlaced = placedAt ? Math.max(0, Math.round((now - placedAt) / 60000)) : null;
+  // Once accepted, the countdown is based on the acceptance time (confirmedAt)
+  // rather than the moment the order was placed, so the time waiting for the
+  // restaurant to accept doesn't get counted against the delivery estimate.
+  const acceptedAt = order.confirmedAt
+    ? new Date(order.confirmedAt).getTime()
+    : (!awaitingAcceptance ? placedAt : null);
+  const minutesSincePlaced = acceptedAt ? Math.max(0, Math.round((now - acceptedAt) / 60000)) : null;
+
+  // Live-extending ETA: rather than freezing on "Any moment now" the instant
+  // the original estimate is blown, we quietly push the window out in small
+  // steps so the number on screen keeps moving/feels live. After a handful of
+  // extensions we give up extending and just show "Any moment now" for good.
+  const ETA_EXTENSION_STEP_MIN = 5;
+  const MAX_ETA_EXTENSIONS = 4; // up to 20 extra minutes of grace
+  let effectiveMax = etaRange ? etaRange.max : null;
+  if (etaRange && minutesSincePlaced !== null) {
+    let extensionsUsed = 0;
+    while (minutesSincePlaced > effectiveMax && extensionsUsed < MAX_ETA_EXTENSIONS) {
+      effectiveMax += ETA_EXTENSION_STEP_MIN;
+      extensionsUsed += 1;
+    }
+  }
+
   const minutesLeft = etaRange && minutesSincePlaced !== null
-    ? Math.max(0, etaRange.max - minutesSincePlaced)
+    ? Math.max(0, effectiveMax - minutesSincePlaced)
     : null;
-  const isOverdue = !!(etaRange && minutesSincePlaced !== null && minutesSincePlaced > etaRange.max);
+  // Past the original estimate, but we're still showing an extended live countdown
+  const isRunningLate = !!(etaRange && minutesSincePlaced !== null && minutesSincePlaced > etaRange.max);
+  // Past even the extended grace window — nothing meaningful left to count down
+  const isOverdue = !!(etaRange && minutesSincePlaced !== null && minutesSincePlaced > effectiveMax);
+
+  const etaEyebrow = awaitingAcceptance
+    ? 'Waiting for restaurant'
+    : isOverdue
+      ? 'Almost there'
+      : isRunningLate
+        ? 'Running a little late'
+        : 'Arriving in';
+
+  const etaValue = awaitingAcceptance
+    ? 'Confirming your order…'
+    : isOverdue
+      ? 'Any moment now'
+      : minutesLeft !== null
+        ? `${minutesLeft} min${minutesLeft === 1 ? '' : 's'}`
+        : (order.estimatedDeliveryTime || '30-45 min');
 
   const restaurantName = order.restaurantId?.restaurantName || order.restaurantName || 'Restaurant';
   const restaurantAddress = order.restaurantId?.address || '';
@@ -309,9 +357,9 @@ export default function OrderTrackingScreen({ route, navigation }) {
                   </>
                 ) : (
                   <>
-                    <Text style={styles.peekEyebrow}>{isOverdue ? 'Almost there' : 'Arriving in'}</Text>
-                    <Text style={styles.peekTime}>
-                      {isOverdue ? 'Any moment now' : minutesLeft !== null ? `${minutesLeft} mins` : (order.estimatedDeliveryTime || '30-45 min')}
+                    <Text style={styles.peekEyebrow}>{etaEyebrow}</Text>
+                    <Text style={[styles.peekTime, awaitingAcceptance && styles.peekTimeWaiting]}>
+                      {etaValue}
                     </Text>
                   </>
                 )}
@@ -340,16 +388,20 @@ export default function OrderTrackingScreen({ route, navigation }) {
           {/* Estimated Delivery Time card — bill-card style, mirrors Cart screen */}
           {!isCancelled && order.status !== 'delivered' && (
             <View style={styles.etaCard}>
-              <View style={styles.etaCardIconWrap}>
-                <Ionicons name="time" size={20} color="#fff" />
+              <View style={[styles.etaCardIconWrap, awaitingAcceptance && styles.etaCardIconWrapWaiting]}>
+                <Ionicons name={awaitingAcceptance ? 'hourglass-outline' : 'time'} size={20} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.etaCardLabel}>
-                  {isOverdue ? 'Arriving any moment' : 'Estimated Delivery Time'}
+                  {awaitingAcceptance
+                    ? 'The restaurant hasn\u2019t accepted yet'
+                    : isOverdue
+                      ? 'Arriving any moment'
+                      : isRunningLate
+                        ? 'Running a little behind schedule'
+                        : 'Estimated Delivery Time'}
                 </Text>
-                <Text style={styles.etaCardValue}>
-                  {isOverdue ? 'Any moment now' : minutesLeft !== null ? `${minutesLeft} mins` : (order.estimatedDeliveryTime || '30-45 min')}
-                </Text>
+                <Text style={styles.etaCardValue}>{etaValue}</Text>
               </View>
               {placedAt && (
                 <View style={styles.etaCardOrderedAt}>
@@ -570,6 +622,7 @@ const styles = StyleSheet.create({
   peekIconWrapCancelled: { backgroundColor: COLORS.darkTextSecondary },
   peekEyebrow: { fontSize: 11, fontWeight: '700', color: COLORS.darkTextSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
   peekTime: { fontSize: 22, fontWeight: '800', color: COLORS.white, marginTop: 1 },
+  peekTimeWaiting: { fontSize: 17 },
   peekTitle: { fontSize: 17, fontWeight: '800', color: COLORS.white },
   peekSub: { fontSize: 12, color: COLORS.darkTextSecondary, marginTop: 2, fontWeight: '600' },
 
@@ -587,6 +640,7 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
+  etaCardIconWrapWaiting: { backgroundColor: COLORS.darkTextSecondary },
   etaCardLabel: { fontSize: 12, color: COLORS.darkTextSecondary, fontWeight: '600' },
   etaCardValue: { fontSize: 18, fontWeight: '800', color: COLORS.white, marginTop: 2 },
   etaCardOrderedAt: { alignItems: 'flex-end' },
