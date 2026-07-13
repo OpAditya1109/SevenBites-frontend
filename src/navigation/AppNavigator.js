@@ -37,17 +37,17 @@ function HomeTabs() {
         tabBarInactiveTintColor: COLORS.gray,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 18,
+          bottom: 12,
           left: 60,
           right: 60,
-          height: 52,
+          height: 44,
           borderRadius: 20,
           backgroundColor: 'rgba(255,255,255,0.82)',
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.6)',
           paddingBottom: 0,
-          paddingTop: 6,
+          paddingTop: 4,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 10 },
           shadowOpacity: 0.15,
@@ -55,15 +55,15 @@ function HomeTabs() {
           elevation: 12,
         },
         tabBarItemStyle: { paddingVertical: 0 },
-        tabBarLabelStyle: { fontSize: 11, marginTop: -2, marginBottom: 4 },
-        tabBarIconStyle: { marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 10, marginTop: -2, marginBottom: 3 },
+        tabBarIconStyle: { marginTop: 0 },
         tabBarIcon: ({ color, size, focused }) => {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
             Orders: focused ? 'receipt' : 'receipt-outline',
             Profile: focused ? 'person' : 'person-outline',
           };
-          return <Ionicons name={icons[route.name]} size={size} color={color} />;
+          return <Ionicons name={icons[route.name]} size={size - 2} color={color} />;
         },
       })}
     >
@@ -80,7 +80,6 @@ function HomeTabs() {
     </Tab.Navigator>
   );
 }
-
 export default function AppNavigator() {
   const { isLoading, isAuthenticated } = useAuth();
 
