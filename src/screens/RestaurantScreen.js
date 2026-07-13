@@ -51,6 +51,14 @@ export default function RestaurantScreen({ route, navigation }) {
   const sectionOffsets = useRef({});
   const cartFabAnim = useRef(new Animated.Value(0)).current;
 
+  // Menu / filter bar toggle state
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState(null); // e.g. 'priceLowHigh'
+  const [vegFilter, setVegFilter] = useState(null); // 'veg' | 'nonveg' | null
+  const [topPicks, setTopPicks] = useState(false);
+  const [dietary, setDietary] = useState(null);
+  const [offersOnly, setOffersOnly] = useState(false);
+
   useEffect(() => { fetchMenu(); }, []);
 
   useEffect(() => {
@@ -199,20 +207,6 @@ export default function RestaurantScreen({ route, navigation }) {
               <Text style={styles.statValue}>{restaurant.deliveryTime} min</Text>
               <Text style={styles.statLabel}>Delivery</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="wallet-outline" size={18} color={COLORS.secondary} />
-              <Text style={styles.statValue}>₹{restaurant.minOrder}</Text>
-              <Text style={styles.statLabel}>Min. Order</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} />
-              <Text style={styles.statValue}>
-                {restaurant.deliveryFee === 0 ? 'Free' : `₹${restaurant.deliveryFee}`}
-              </Text>
-              <Text style={styles.statLabel}>Delivery Fee</Text>
-            </View>
           </View>
 
           {(restaurant.discount || restaurant.offer) && (
@@ -229,24 +223,100 @@ export default function RestaurantScreen({ route, navigation }) {
         ) : (
           <>
             <View style={styles.categoryTabsWrap}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryTabs}
-              >
-                {menu.map((section, idx) => (
-                  <TouchableOpacity
-                    key={section._id}
-                    style={[styles.categoryTab, activeCategory === idx && styles.activeCategoryTab]}
-                    onPress={() => scrollToCategory(idx)}
-                    activeOpacity={0.8}
+              {!showFilters ? (
+                <View style={styles.categoryBarRow}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryTabs}
+                    style={{ flex: 1 }}
                   >
-                    <Text style={[styles.categoryTabText, activeCategory === idx && styles.activeCategoryTabText]}>
-                      {section.category}
+                    {menu.map((section, idx) => (
+                      <TouchableOpacity
+                        key={section._id}
+                        style={[styles.categoryTab, activeCategory === idx && styles.activeCategoryTab]}
+                        onPress={() => scrollToCategory(idx)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.categoryTabText, activeCategory === idx && styles.activeCategoryTabText]}>
+                          {section.category}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  <TouchableOpacity
+                    style={styles.menuBtn}
+                    onPress={() => setShowFilters(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="restaurant-outline" size={14} color="#fff" />
+                    <Text style={styles.menuBtnText}>Menu</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryTabs}
+                >
+                  <TouchableOpacity
+                    style={styles.filterChip}
+                    onPress={() => setShowFilters(false)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="chevron-back" size={14} color={COLORS.white} />
+                    <Text style={styles.filterChipText}>Categories</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, sortBy && styles.activeFilterChip]}
+                    onPress={() => setSortBy(sortBy ? null : 'priceLowHigh')}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="swap-vertical" size={14} color={sortBy ? '#fff' : COLORS.darkTextSecondary} />
+                    <Text style={[styles.filterChipText, sortBy && styles.activeFilterChipText]}>Sort By</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, vegFilter && styles.activeFilterChip]}
+                    onPress={() => setVegFilter(vegFilter === 'veg' ? 'nonveg' : vegFilter === 'nonveg' ? null : 'veg')}
+                    activeOpacity={0.85}
+                  >
+                    <View style={[styles.vegDotSmall, { backgroundColor: vegFilter === 'nonveg' ? COLORS.nonVegRed : COLORS.vegGreen }]} />
+                    <Text style={[styles.filterChipText, vegFilter && styles.activeFilterChipText]}>
+                      {vegFilter === 'veg' ? 'Veg' : vegFilter === 'nonveg' ? 'Non-Veg' : 'Veg / Non-Veg'}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, topPicks && styles.activeFilterChip]}
+                    onPress={() => setTopPicks(!topPicks)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="flame" size={14} color={topPicks ? '#fff' : COLORS.darkTextSecondary} />
+                    <Text style={[styles.filterChipText, topPicks && styles.activeFilterChipText]}>Top Picks</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, dietary && styles.activeFilterChip]}
+                    onPress={() => setDietary(dietary ? null : 'jain')}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="leaf-outline" size={14} color={dietary ? '#fff' : COLORS.darkTextSecondary} />
+                    <Text style={[styles.filterChipText, dietary && styles.activeFilterChipText]}>Dietary Preference</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, offersOnly && styles.activeFilterChip]}
+                    onPress={() => setOffersOnly(!offersOnly)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="pricetag-outline" size={14} color={offersOnly ? '#fff' : COLORS.darkTextSecondary} />
+                    <Text style={[styles.filterChipText, offersOnly && styles.activeFilterChipText]}>Offers</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              )}
             </View>
 
             {menu.map((section, idx) => (
@@ -343,7 +413,7 @@ const styles = StyleSheet.create({
   ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, gap: 4 },
   ratingText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   ratingCount: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 14, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
+  statsRow: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
   statItem: { alignItems: 'center', gap: 3 },
   statValue: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   statLabel: { fontSize: 11, color: COLORS.darkTextSecondary },
@@ -355,11 +425,29 @@ const styles = StyleSheet.create({
   discountText: { fontSize: 13, color: COLORS.secondary, fontWeight: '700' },
 
   categoryTabsWrap: { backgroundColor: COLORS.darkBg, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
+  categoryBarRow: { flexDirection: 'row', alignItems: 'center' },
   categoryTabs: { paddingHorizontal: 16, gap: 8, paddingVertical: 12 },
   categoryTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.darkBorder, backgroundColor: COLORS.darkCard },
   activeCategoryTab: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   categoryTabText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
   activeCategoryTabText: { color: '#fff' },
+
+  menuBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.primary, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8, marginRight: 16,
+  },
+  menuBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  filterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: COLORS.darkBorder, backgroundColor: COLORS.darkCard,
+  },
+  activeFilterChip: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
+  activeFilterChipText: { color: '#fff' },
+  vegDotSmall: { width: 8, height: 8, borderRadius: 4 },
 
   menuCategoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 16, paddingTop: 22, paddingBottom: 8 },
   menuCategory: { fontSize: 17, fontWeight: '800', color: COLORS.white },

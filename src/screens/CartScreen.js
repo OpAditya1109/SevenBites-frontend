@@ -489,7 +489,14 @@ export default function CartScreen({ navigation }) {
             </View>
           )}
         </View>
-
+{/* Cancellation Policy */}
+        <View style={styles.policyRow}>
+          <Ionicons name="alert-circle-outline" size={16} color={COLORS.secondary} />
+          <Text style={styles.policyText}>
+            <Text style={styles.policyTextBold}>Cancellation Policy: </Text>
+            100% cancellation charges will apply once the order is placed. This order cannot be cancelled after confirmation.
+          </Text>
+        </View>
         {/* Trust strip — reduces last-second payment-page abandonment */}
         <View style={styles.trustRow}>
           <View style={styles.trustItem}>
@@ -725,4 +732,26 @@ const styles = StyleSheet.create({
   applyBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, alignSelf: 'center' },
   applyBtnDisabled: { backgroundColor: COLORS.darkBorder },
   applyBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  policyRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  gap: 8,
+  backgroundColor: 'rgba(252,128,25,0.08)',
+  marginHorizontal: 16,
+  marginTop: 14,
+  padding: 12,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: 'rgba(252,128,25,0.25)',
+},
+policyText: {
+  flex: 1,
+  fontSize: 12,
+  color: COLORS.darkTextSecondary,
+  lineHeight: 17,
+},
+policyTextBold: {
+  fontWeight: '700',
+  color: COLORS.secondary,
+},
 });

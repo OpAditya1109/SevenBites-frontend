@@ -62,6 +62,10 @@ export default function OrderTrackingScreen({ route, navigation }) {
   const translateY = useRef(new Animated.Value(EXPANDED_Y)).current;
   const lastOffset = useRef(EXPANDED_Y);
 
+  // Pulsing "live" indicator for the current step in the horizontal tracker
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.6)).current;
+
   const snapTo = useCallback((target, velocity = 0) => {
     lastOffset.current = target;
     setSheetExpanded(target === EXPANDED_Y);
@@ -154,6 +158,23 @@ export default function OrderTrackingScreen({ route, navigation }) {
       useNativeDriver: false,
     }).start();
   }, [currentStepIndex, isCancelled, order]);
+
+  // Pulsing ring around the current step's circle — loops while the order is live
+  useEffect(() => {
+    if (isCancelled || !order || order.status === 'delivered') return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseAnim, { toValue: 1.9, duration: 1000, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
+        ]),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 0, useNativeDriver: true }),
+        Animated.timing(pulseOpacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isCancelled, order?.status]);
 
   // When the order first flips to "out_for_delivery" or "delivered", auto-expand
   // the sheet so the person actually sees the milestone instead of missing it
@@ -316,6 +337,29 @@ export default function OrderTrackingScreen({ route, navigation }) {
           contentContainerStyle={{ paddingBottom: 24 }}
           style={{ flex: 1 }}
         >
+          {/* Estimated Delivery Time card — bill-card style, mirrors Cart screen */}
+          {!isCancelled && order.status !== 'delivered' && (
+            <View style={styles.etaCard}>
+              <View style={styles.etaCardIconWrap}>
+                <Ionicons name="time" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.etaCardLabel}>
+                  {isOverdue ? 'Arriving any moment' : 'Estimated Delivery Time'}
+                </Text>
+                <Text style={styles.etaCardValue}>
+                  {isOverdue ? 'Any moment now' : minutesLeft !== null ? `${minutesLeft} mins` : (order.estimatedDeliveryTime || '30-45 min')}
+                </Text>
+              </View>
+              {placedAt && (
+                <View style={styles.etaCardOrderedAt}>
+                  <Text style={styles.etaCardOrderedAtLabel}>Ordered at</Text>
+                  <Text style={styles.etaCardOrderedAtValue}>{formatClock(order.createdAt)}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {!isCancelled && (
             <View style={styles.routeBlock}>
               <View style={styles.routeRow}>
@@ -358,6 +402,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
             </View>
           )}
 
+          {/* Zomato-style horizontal status tracker */}
           {!isCancelled && (
             <View style={styles.stepsContainer}>
               <View style={styles.sectionHeaderRow}>
@@ -365,27 +410,54 @@ export default function OrderTrackingScreen({ route, navigation }) {
                 <Text style={styles.sectionTitle}>Order Status</Text>
               </View>
 
-              <View style={styles.progressTrack}>
-                <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+              <View style={styles.hStepsRow}>
+                {ORDER_STEPS.map((step, index) => {
+                  const isDone = currentStepIndex > index;
+                  const isActive = currentStepIndex === index;
+                  return (
+                    <React.Fragment key={step.status}>
+                      <View style={styles.hStepCol}>
+                        <View style={styles.hStepCircleWrap}>
+                          {isActive && (
+                            <Animated.View
+                              pointerEvents="none"
+                              style={[styles.hStepPulse, { transform: [{ scale: pulseAnim }], opacity: pulseOpacity }]}
+                            />
+                          )}
+                          <View style={[styles.hStepCircle, isDone && styles.hStepCircleDone, isActive && styles.hStepCircleActive]}>
+                            <Ionicons
+                              name={isDone ? 'checkmark' : step.icon}
+                              size={15}
+                              color={isDone || isActive ? '#fff' : COLORS.darkTextSecondary}
+                            />
+                          </View>
+                        </View>
+                        <Text style={[styles.hStepLabel, (isDone || isActive) && styles.hStepLabelActive]} numberOfLines={2}>
+                          {step.label}
+                        </Text>
+                      </View>
+                      {index < ORDER_STEPS.length - 1 && (
+                        <View style={styles.hStepLineWrap}>
+                          <View style={[styles.hStepLine, currentStepIndex > index && styles.hStepLineDone]} />
+                        </View>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </View>
 
-              {ORDER_STEPS.map((step, index) => {
-                const isDone = currentStepIndex > index;
-                const isActive = currentStepIndex === index;
-                const ts = order[TIMESTAMP_FIELD[step.status]];
-                return (
-                  <View key={step.status} style={styles.step}>
-                    <View style={[styles.stepCircle, isDone && styles.doneCircle, isActive && styles.activeCircle]}>
-                      {isDone ? <Ionicons name="checkmark" size={16} color="#fff" /> : <Text style={[styles.stepNum, isActive && styles.activeStepNum]}>{index + 1}</Text>}
-                    </View>
-                    <View style={styles.stepInfo}>
-                      <Text style={[styles.stepLabel, (isDone || isActive) && styles.activeStepLabel]}>{step.label}</Text>
-                      {(isActive || isDone) && <Text style={styles.stepDesc}>{step.description}</Text>}
-                      {ts && <Text style={styles.stepTime}>{formatClock(ts)}</Text>}
-                    </View>
-                  </View>
-                );
-              })}
+              <View style={styles.activeStepCard}>
+                <Ionicons name={ORDER_STEPS[currentStepIndex].icon} size={20} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.activeStepCardTitle}>{ORDER_STEPS[currentStepIndex].label}</Text>
+                  <Text style={styles.activeStepCardDesc}>{ORDER_STEPS[currentStepIndex].description}</Text>
+                </View>
+                {order[TIMESTAMP_FIELD[ORDER_STEPS[currentStepIndex].status]] && (
+                  <Text style={styles.activeStepCardTime}>
+                    {formatClock(order[TIMESTAMP_FIELD[ORDER_STEPS[currentStepIndex].status]])}
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -506,6 +578,21 @@ const styles = StyleSheet.create({
   peekProgressFill: { height: '100%', borderRadius: 2, backgroundColor: COLORS.primary },
   peekStatusText: { fontSize: 12, fontWeight: '700', color: COLORS.darkTextSecondary },
 
+  etaCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.darkCardAlt, marginHorizontal: 18, marginTop: 16,
+    borderRadius: 18, padding: 16, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  etaCardIconWrap: {
+    width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  etaCardLabel: { fontSize: 12, color: COLORS.darkTextSecondary, fontWeight: '600' },
+  etaCardValue: { fontSize: 18, fontWeight: '800', color: COLORS.white, marginTop: 2 },
+  etaCardOrderedAt: { alignItems: 'flex-end' },
+  etaCardOrderedAtLabel: { fontSize: 10, color: COLORS.darkTextSecondary },
+  etaCardOrderedAtValue: { fontSize: 13, fontWeight: '700', color: COLORS.white, marginTop: 2 },
+
   routeBlock: { marginTop: 20, paddingTop: 18, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
   routeRow: { flexDirection: 'row', gap: 12 },
   routeIconCol: { alignItems: 'center', width: 24 },
@@ -522,19 +609,28 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.white },
 
   stepsContainer: { backgroundColor: COLORS.darkCardAlt, marginHorizontal: 18, borderRadius: 20, padding: 20, marginTop: 14 },
-  progressTrack: { position: 'absolute', left: 40, top: 62, width: 3, height: '72%', backgroundColor: COLORS.darkBorder },
-  progressFill: { backgroundColor: COLORS.primary, borderRadius: 2 },
-  step: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
-  stepCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.darkBorder, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
-  doneCircle: { backgroundColor: COLORS.green },
-  activeCircle: { backgroundColor: COLORS.primary },
-  stepNum: { fontSize: 13, fontWeight: '700', color: COLORS.darkTextSecondary },
-  activeStepNum: { color: '#fff' },
-  stepInfo: { flex: 1, paddingTop: 5 },
-  stepLabel: { fontSize: 14, fontWeight: '600', color: COLORS.darkTextSecondary },
-  activeStepLabel: { color: COLORS.white },
-  stepDesc: { fontSize: 12, color: COLORS.secondary, marginTop: 2 },
-  stepTime: { fontSize: 11, color: COLORS.darkTextSecondary, marginTop: 2 },
+
+  hStepsRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 6, marginBottom: 16 },
+  hStepCol: { alignItems: 'center', width: 50 },
+  hStepCircleWrap: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  hStepPulse: { position: 'absolute', width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.primary },
+  hStepCircle: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.darkBorder, alignItems: 'center', justifyContent: 'center' },
+  hStepCircleDone: { backgroundColor: COLORS.green },
+  hStepCircleActive: { backgroundColor: COLORS.primary },
+  hStepLabel: { fontSize: 10, color: COLORS.darkTextSecondary, textAlign: 'center', marginTop: 6, fontWeight: '600', lineHeight: 13 },
+  hStepLabelActive: { color: COLORS.white },
+  hStepLineWrap: { flex: 1, height: 30, justifyContent: 'center', marginTop: 2, marginHorizontal: -4 },
+  hStepLine: { height: 2, backgroundColor: COLORS.darkBorder, borderRadius: 1 },
+  hStepLineDone: { backgroundColor: COLORS.green },
+
+  activeStepCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(252,128,25,0.08)', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: 'rgba(252,128,25,0.25)',
+  },
+  activeStepCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  activeStepCardDesc: { fontSize: 12, color: COLORS.darkTextSecondary, marginTop: 2 },
+  activeStepCardTime: { fontSize: 12, fontWeight: '700', color: COLORS.darkTextSecondary },
 
   invoiceCard: { backgroundColor: COLORS.darkCardAlt, marginHorizontal: 18, borderRadius: 20, padding: 18, marginTop: 14 },
   invoiceHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },

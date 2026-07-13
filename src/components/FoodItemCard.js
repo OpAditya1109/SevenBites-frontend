@@ -137,11 +137,11 @@ export default function FoodItemCard({ item, quantity, onAdd, onRemove }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
+ card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.darkCard,
     padding: 16,
     borderBottomWidth: 1,
+    borderStyle: 'dotted',
     borderBottomColor: COLORS.darkBorder,
     alignItems: 'flex-start',
   },
