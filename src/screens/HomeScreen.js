@@ -7,23 +7,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, HOME_CATEGORIES } from '../utils/constants';
-import { getRestaurants } from '../services/api';
+import { getRestaurants, getUserOrders, connectOrderSocket } from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
 import CategoryChip from '../components/CategoryChip';
+import HomeFloatingBar from '../components/HomeFloatingBar';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 
 const ACTIVE_ADDRESS_KEY = 'sevenbites_active_address';
 
+// Statuses that count as "live" / in-progress orders
+const ACTIVE_ORDER_STATUSES = ['placed', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
-  const { totalItems, totalPrice } = useCart();
+  const { totalItems, totalPrice, restaurantName } = useCart();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [activeAddress, setActiveAddress] = useState(null);
+  const [activeOrder, setActiveOrder] = useState(null);
 
   // ── Load active address ───────────────────────────────────────
   useEffect(() => { loadActiveAddress(); }, []);
@@ -39,6 +44,53 @@ export default function HomeScreen({ navigation }) {
     const unsubscribe = navigation.addListener('focus', loadActiveAddress);
     return unsubscribe;
   }, [navigation]);
+
+  // ── Live order (for the "Live Order" tracking button) ──────────
+  const fetchActiveOrder = useCallback(async () => {
+    try {
+      const res = await getUserOrders();
+      const list = res.data.data || res.data || [];
+      const live = list.find((o) => ACTIVE_ORDER_STATUSES.includes(o.status));
+      setActiveOrder(live || null);
+    } catch {
+      setActiveOrder(null);
+    }
+  }, []);
+
+  useEffect(() => { fetchActiveOrder(); }, [fetchActiveOrder]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchActiveOrder);
+    return unsubscribe;
+  }, [navigation, fetchActiveOrder]);
+
+  // ── Real-time push updates for the active order ─────────────────
+  // Joins the same socket room the OrderTracking screen uses, so the Home
+  // "Live Order" card reflects status changes the instant they happen —
+  // no waiting for the next focus/poll cycle.
+  useEffect(() => {
+    if (!activeOrder?._id) return undefined;
+
+    const socket = connectOrderSocket();
+    socket.emit('join_order_room', activeOrder._id);
+
+    const onStatusUpdate = (updatedOrder) => {
+      setActiveOrder((prev) => {
+        if (!prev || updatedOrder?._id !== prev._id) return prev;
+        // Order left the "active" set (e.g. delivered/cancelled) — drop the card
+        return ACTIVE_ORDER_STATUSES.includes(updatedOrder.status) ? updatedOrder : null;
+      });
+    };
+    socket.on('order_status_updated', onStatusUpdate);
+
+    // Light poll as a backup in case a socket event is missed
+    const poll = setInterval(fetchActiveOrder, 30000);
+
+    return () => {
+      socket.off('order_status_updated', onStatusUpdate);
+      clearInterval(poll);
+    };
+  }, [activeOrder?._id, fetchActiveOrder]);
 
   const addressLabel = activeAddress
     ? [activeAddress.flatNo, activeAddress.street, activeAddress.city].filter(Boolean).join(', ')
@@ -185,19 +237,19 @@ export default function HomeScreen({ navigation }) {
           </>
         )}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 180 }} />
       </ScrollView>
 
-      {/* ── Cart FAB ──────────────────────────────────────────── */}
-      {totalItems > 0 && (
-        <TouchableOpacity style={styles.cartFab} onPress={() => navigation.navigate('Cart')}>
-          <View style={styles.cartFabBadge}>
-            <Text style={styles.cartFabBadgeText}>{totalItems}</Text>
-          </View>
-          <Text style={styles.cartFabText}>View Cart</Text>
-          <Text style={styles.cartFabPrice}>₹{totalPrice.toFixed(0)}</Text>
-        </TouchableOpacity>
-      )}
+      {/* ── Floating widget (Live Order + Cart, swipeable when both present) ──
+          Sits just above the bottom tab bar so it's never hidden behind it. */}
+      <HomeFloatingBar
+        activeOrder={activeOrder}
+        totalItems={totalItems}
+        totalPrice={totalPrice}
+        restaurantName={restaurantName}
+        onPressOrder={() => navigation.navigate('OrderTracking', { orderId: activeOrder._id })}
+        onPressCart={() => navigation.navigate('Cart')}
+      />
     </SafeAreaView>
   );
 }
@@ -247,15 +299,4 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, marginBottom: 6 },
   emptySub: { fontSize: 13, color: COLORS.darkTextSecondary, textAlign: 'center' },
 
-  cartFab: {
-    position: 'absolute', bottom: 24, left: 24, right: 24,
-    backgroundColor: COLORS.primary, borderRadius: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
-  },
-  cartFabBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  cartFabBadgeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  cartFabText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  cartFabPrice: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

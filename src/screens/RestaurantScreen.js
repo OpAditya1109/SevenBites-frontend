@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, Alert, Image, Share,
+  StyleSheet, Animated, Alert, Image, Share, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,19 +51,24 @@ export default function RestaurantScreen({ route, navigation }) {
   const sectionOffsets = useRef({});
   const cartFabAnim = useRef(new Animated.Value(0)).current;
 
-  // Menu / filter bar toggle state
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState(null); // e.g. 'priceLowHigh'
-  const [vegFilter, setVegFilter] = useState(null); // 'veg' | 'nonveg' | null
-  const [topPicks, setTopPicks] = useState(false);
+  // Filter chip state (permanent row, Zomato-style)
+  const [vegFilter, setVegFilter] = useState(null); // 'veg' | 'egg' | 'nonveg' | null
+  const [topRated, setTopRated] = useState(false);
+  const [filtersModalVisible, setFiltersModalVisible] = useState(false);
+  const [sortBy, setSortBy] = useState(null);
   const [dietary, setDietary] = useState(null);
   const [offersOnly, setOffersOnly] = useState(false);
+
+  // Floating "Menu" button -> quick category-jump sheet
+  const [menuSheetVisible, setMenuSheetVisible] = useState(false);
+
+  const isCartActive = totalItems > 0 && restaurantId === restaurant._id;
 
   useEffect(() => { fetchMenu(); }, []);
 
   useEffect(() => {
     Animated.spring(cartFabAnim, {
-      toValue: totalItems > 0 && restaurantId === restaurant._id ? 1 : 0,
+      toValue: isCartActive ? 1 : 0,
       friction: 7, tension: 80, useNativeDriver: true,
     }).start();
   }, [totalItems, restaurantId]);
@@ -114,7 +119,20 @@ export default function RestaurantScreen({ route, navigation }) {
     if (y !== undefined && scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: Math.max(y - 60, 0), animated: true });
     }
+    setMenuSheetVisible(false);
   };
+
+  // Apply the permanent filter chips to the menu list for rendering
+  const filteredMenu = menu
+    .map((section) => {
+      let items = section.items;
+      if (vegFilter === 'veg') items = items.filter((i) => i.isVeg);
+      if (vegFilter === 'nonveg') items = items.filter((i) => !i.isVeg);
+      if (vegFilter === 'egg') items = items.filter((i) => i.isEgg);
+      if (topRated) items = items.filter((i) => (i.rating || 0) >= 4.3);
+      return { ...section, items };
+    })
+    .filter((section) => section.items.length > 0);
 
   return (
     <View style={styles.container}>
@@ -189,6 +207,10 @@ export default function RestaurantScreen({ route, navigation }) {
                   ? [restaurant.address?.street, restaurant.address?.city].filter(Boolean).join(', ')
                   : restaurant.address || ''}
               </Text>
+              <View style={styles.timingRow}>
+                <Ionicons name="time-outline" size={13} color={COLORS.secondary} />
+                <Text style={styles.timingText}>{restaurant.deliveryTime} min delivery</Text>
+              </View>
             </View>
             {restaurant.rating ? (
               <View style={styles.ratingBadge}>
@@ -199,14 +221,6 @@ export default function RestaurantScreen({ route, navigation }) {
                 ) : null}
               </View>
             ) : null}
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Ionicons name="time-outline" size={18} color={COLORS.secondary} />
-              <Text style={styles.statValue}>{restaurant.deliveryTime} min</Text>
-              <Text style={styles.statLabel}>Delivery</Text>
-            </View>
           </View>
 
           {(restaurant.discount || restaurant.offer) && (
@@ -222,132 +236,219 @@ export default function RestaurantScreen({ route, navigation }) {
           <AppLoader messages={LOADING_MESSAGES.restaurant} />
         ) : (
           <>
-            <View style={styles.categoryTabsWrap}>
-              {!showFilters ? (
-                <View style={styles.categoryBarRow}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryTabs}
-                    style={{ flex: 1 }}
-                  >
-                    {menu.map((section, idx) => (
-                      <TouchableOpacity
-                        key={section._id}
-                        style={[styles.categoryTab, activeCategory === idx && styles.activeCategoryTab]}
-                        onPress={() => scrollToCategory(idx)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[styles.categoryTabText, activeCategory === idx && styles.activeCategoryTabText]}>
-                          {section.category}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-
-                  <TouchableOpacity
-                    style={styles.menuBtn}
-                    onPress={() => setShowFilters(true)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="restaurant-outline" size={14} color="#fff" />
-                    <Text style={styles.menuBtnText}>Menu</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryTabs}
+            {/* Permanent filter chips row — always visible, sits right below info card */}
+            <View style={styles.filterBarWrap}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterBar}
+              >
+                <TouchableOpacity
+                  style={styles.filterChip}
+                  onPress={() => setFiltersModalVisible(true)}
+                  activeOpacity={0.85}
                 >
-                  <TouchableOpacity
-                    style={styles.filterChip}
-                    onPress={() => setShowFilters(false)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="chevron-back" size={14} color={COLORS.white} />
-                    <Text style={styles.filterChipText}>Categories</Text>
-                  </TouchableOpacity>
+                  <Ionicons name="options-outline" size={14} color={COLORS.darkTextSecondary} />
+                  <Text style={styles.filterChipText}>Filters</Text>
+                  <Ionicons name="chevron-down" size={13} color={COLORS.darkTextSecondary} />
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, sortBy && styles.activeFilterChip]}
-                    onPress={() => setSortBy(sortBy ? null : 'priceLowHigh')}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="swap-vertical" size={14} color={sortBy ? '#fff' : COLORS.darkTextSecondary} />
-                    <Text style={[styles.filterChipText, sortBy && styles.activeFilterChipText]}>Sort By</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, vegFilter === 'veg' && styles.activeFilterChipVeg]}
+                  onPress={() => setVegFilter(vegFilter === 'veg' ? null : 'veg')}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.vegIconBox, { borderColor: COLORS.vegGreen }]}>
+                    <View style={[styles.vegDotSmall, { backgroundColor: COLORS.vegGreen }]} />
+                  </View>
+                  <Text style={[styles.filterChipText, vegFilter === 'veg' && styles.activeFilterChipTextVeg]}>Veg</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, vegFilter && styles.activeFilterChip]}
-                    onPress={() => setVegFilter(vegFilter === 'veg' ? 'nonveg' : vegFilter === 'nonveg' ? null : 'veg')}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.vegDotSmall, { backgroundColor: vegFilter === 'nonveg' ? COLORS.nonVegRed : COLORS.vegGreen }]} />
-                    <Text style={[styles.filterChipText, vegFilter && styles.activeFilterChipText]}>
-                      {vegFilter === 'veg' ? 'Veg' : vegFilter === 'nonveg' ? 'Non-Veg' : 'Veg / Non-Veg'}
-                    </Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, vegFilter === 'egg' && styles.activeFilterChip]}
+                  onPress={() => setVegFilter(vegFilter === 'egg' ? null : 'egg')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.filterChipEmoji}>🥚</Text>
+                  <Text style={[styles.filterChipText, vegFilter === 'egg' && styles.activeFilterChipText]}>Egg</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, topPicks && styles.activeFilterChip]}
-                    onPress={() => setTopPicks(!topPicks)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="flame" size={14} color={topPicks ? '#fff' : COLORS.darkTextSecondary} />
-                    <Text style={[styles.filterChipText, topPicks && styles.activeFilterChipText]}>Top Picks</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, vegFilter === 'nonveg' && styles.activeFilterChipNonVeg]}
+                  onPress={() => setVegFilter(vegFilter === 'nonveg' ? null : 'nonveg')}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.vegIconBox, { borderColor: COLORS.nonVegRed }]}>
+                    <View style={[styles.nonVegTriangle, { borderBottomColor: COLORS.nonVegRed }]} />
+                  </View>
+                  <Text style={[styles.filterChipText, vegFilter === 'nonveg' && styles.activeFilterChipTextNonVeg]}>Non-veg</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, dietary && styles.activeFilterChip]}
-                    onPress={() => setDietary(dietary ? null : 'jain')}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="leaf-outline" size={14} color={dietary ? '#fff' : COLORS.darkTextSecondary} />
-                    <Text style={[styles.filterChipText, dietary && styles.activeFilterChipText]}>Dietary Preference</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, topRated && styles.activeFilterChip]}
+                  onPress={() => setTopRated(!topRated)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="sync" size={14} color={topRated ? '#fff' : COLORS.darkTextSecondary} />
+                  <Text style={[styles.filterChipText, topRated && styles.activeFilterChipText]}>Highly Rated</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, offersOnly && styles.activeFilterChip]}
-                    onPress={() => setOffersOnly(!offersOnly)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="pricetag-outline" size={14} color={offersOnly ? '#fff' : COLORS.darkTextSecondary} />
-                    <Text style={[styles.filterChipText, offersOnly && styles.activeFilterChipText]}>Offers</Text>
-                  </TouchableOpacity>
-                </ScrollView>
-              )}
+                <TouchableOpacity
+                  style={[styles.filterChip, offersOnly && styles.activeFilterChip]}
+                  onPress={() => setOffersOnly(!offersOnly)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="pricetag-outline" size={14} color={offersOnly ? '#fff' : COLORS.darkTextSecondary} />
+                  <Text style={[styles.filterChipText, offersOnly && styles.activeFilterChipText]}>Offers</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
 
-            {menu.map((section, idx) => (
-              <View
-                key={section._id}
-                onLayout={(e) => { sectionOffsets.current[idx] = e.nativeEvent.layout.y; }}
-              >
-                <View style={styles.menuCategoryRow}>
-                  <Text style={styles.menuCategory}>{section.category}</Text>
-                  <Text style={styles.menuCategoryCount}>{section.items.length} items</Text>
-                </View>
-                {section.items.map((item) => (
-                  <FoodItemCard
-                    key={item._id}
-                    item={item}
-                    quantity={getItemQuantity(item._id)}
-                    onAdd={() => handleAddItem(item)}
-                    onRemove={() => removeItem(item._id)}
-                  />
-                ))}
+            {filteredMenu.length === 0 ? (
+              <View style={styles.noResultsWrap}>
+                <Ionicons name="fast-food-outline" size={32} color={COLORS.darkTextSecondary} />
+                <Text style={styles.noResultsText}>No items match your filters</Text>
+                <TouchableOpacity
+                  style={styles.noResultsResetBtn}
+                  onPress={() => { setVegFilter(null); setTopRated(false); setOffersOnly(false); }}
+                >
+                  <Text style={styles.noResultsResetText}>Reset Filters</Text>
+                </TouchableOpacity>
               </View>
-            ))}
+            ) : (
+              filteredMenu.map((section, idx) => (
+                <View
+                  key={section._id}
+                  onLayout={(e) => { sectionOffsets.current[idx] = e.nativeEvent.layout.y; }}
+                >
+                  <View style={styles.menuCategoryRow}>
+                    <Text style={styles.menuCategory}>{section.category}</Text>
+                    <Text style={styles.menuCategoryCount}>{section.items.length} items</Text>
+                  </View>
+                  {section.items.map((item) => (
+                    <FoodItemCard
+                      key={item._id}
+                      item={item}
+                      quantity={getItemQuantity(item._id)}
+                      onAdd={() => handleAddItem(item)}
+                      onRemove={() => removeItem(item._id)}
+                    />
+                  ))}
+                </View>
+              ))
+            )}
           </>
         )}
 
         <View style={{ height: 130 }} />
       </Animated.ScrollView>
 
+      {/* Floating "Menu" button — bottom right, opens quick category-jump sheet */}
+      {!loading && menu.length > 0 && (
+        <TouchableOpacity
+          style={[styles.menuFab, isCartActive && styles.menuFabRaised]}
+          onPress={() => setMenuSheetVisible(true)}
+          activeOpacity={0.88}
+        >
+          <Ionicons name="restaurant" size={16} color="#fff" />
+          <Text style={styles.menuFabText}>Menu</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Category quick-jump bottom sheet, triggered by the Menu FAB */}
+      <Modal
+        visible={menuSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuSheetVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setMenuSheetVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.jumpSheet} onPress={() => {}}>
+            <View style={styles.sheetHandleRow}>
+              <View style={styles.sheetHandle} />
+            </View>
+            <Text style={styles.jumpSheetTitle}>Menu</Text>
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {menu.map((section, idx) => (
+                <TouchableOpacity
+                  key={section._id}
+                  style={[styles.jumpRow, activeCategory === idx && styles.jumpRowActive]}
+                  onPress={() => scrollToCategory(idx)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.jumpRowText, activeCategory === idx && styles.jumpRowTextActive]}>
+                    {section.category}
+                  </Text>
+                  <Text style={styles.jumpRowCount}>{section.items.length}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Filters modal — full option set (Sort By, Dietary Preference, etc.) */}
+      <Modal
+        visible={filtersModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFiltersModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setFiltersModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.jumpSheet} onPress={() => {}}>
+            <View style={styles.sheetHandleRow}>
+              <View style={styles.sheetHandle} />
+            </View>
+            <Text style={styles.jumpSheetTitle}>Filters</Text>
+
+            <Text style={styles.filterGroupLabel}>Sort By</Text>
+            <View style={styles.filterOptionsWrap}>
+              {['Relevance', 'Price: Low to High', 'Price: High to Low', 'Rating'].map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.filterOptionChip, sortBy === opt && styles.activeFilterChip]}
+                  onPress={() => setSortBy(sortBy === opt ? null : opt)}
+                >
+                  <Text style={[styles.filterOptionText, sortBy === opt && styles.activeFilterChipText]}>{opt}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.filterGroupLabel}>Dietary Preference</Text>
+            <View style={styles.filterOptionsWrap}>
+              {['Jain', 'Gluten Free', 'Low Calorie'].map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.filterOptionChip, dietary === opt && styles.activeFilterChip]}
+                  onPress={() => setDietary(dietary === opt ? null : opt)}
+                >
+                  <Text style={[styles.filterOptionText, dietary === opt && styles.activeFilterChipText]}>{opt}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.filterApplyBtn}
+              onPress={() => setFiltersModalVisible(false)}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.filterApplyBtnText}>Apply</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Cart FAB */}
       <Animated.View
-        pointerEvents={totalItems > 0 && restaurantId === restaurant._id ? 'auto' : 'none'}
+        pointerEvents={isCartActive ? 'auto' : 'none'}
         style={[
           styles.cartFab,
           {
@@ -363,7 +464,12 @@ export default function RestaurantScreen({ route, navigation }) {
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{totalItems}</Text>
             </View>
-            <Text style={styles.cartFabText}>View Cart</Text>
+            <View>
+              <Text style={styles.cartFabText} numberOfLines={1}>View Cart</Text>
+              {!!restaurant?.name && (
+                <Text style={styles.cartFabRestName} numberOfLines={1}>{restaurant.name}</Text>
+              )}
+            </View>
           </View>
           <View style={styles.cartFabRight}>
             <Text style={styles.cartFabPrice}>₹{totalPrice.toFixed(0)}</Text>
@@ -406,63 +512,102 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkCard, marginTop: -28, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 18, borderBottomWidth: 8, borderBottomColor: COLORS.darkBg,
   },
-  infoHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16, gap: 10 },
+  infoHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4, gap: 10 },
   restName: { fontSize: 22, fontWeight: '800', color: COLORS.white, marginBottom: 4 },
   restCuisine: { fontSize: 13, color: COLORS.darkTextSecondary, marginBottom: 2 },
   restAddress: { fontSize: 12, color: COLORS.darkTextSecondary },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, gap: 4 },
   ratingText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   ratingCount: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
-  statsRow: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: COLORS.darkBorder },
-  statItem: { alignItems: 'center', gap: 3 },
-  statValue: { fontSize: 15, fontWeight: '700', color: COLORS.white },
-  statLabel: { fontSize: 11, color: COLORS.darkTextSecondary },
-  statDivider: { width: 1, backgroundColor: COLORS.darkBorder },
+  timingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  timingText: { fontSize: 12, color: COLORS.darkTextSecondary, fontWeight: '600' },
+
   discountRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.darkCardAlt,
     padding: 11, borderRadius: 10, marginTop: 10, borderWidth: 1, borderColor: COLORS.darkBorder,
   },
   discountText: { fontSize: 13, color: COLORS.secondary, fontWeight: '700' },
 
-  categoryTabsWrap: { backgroundColor: COLORS.darkBg, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
-  categoryBarRow: { flexDirection: 'row', alignItems: 'center' },
-  categoryTabs: { paddingHorizontal: 16, gap: 8, paddingVertical: 12 },
-  categoryTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.darkBorder, backgroundColor: COLORS.darkCard },
-  activeCategoryTab: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  categoryTabText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
-  activeCategoryTabText: { color: '#fff' },
-
-  menuBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.primary, borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 8, marginRight: 16,
-  },
-  menuBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-
+  filterBarWrap: { backgroundColor: COLORS.darkBg, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
+  filterBar: { paddingHorizontal: 16, gap: 8, paddingVertical: 12 },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
     borderWidth: 1.5, borderColor: COLORS.darkBorder, backgroundColor: COLORS.darkCard,
   },
-  activeFilterChip: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterChipText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
+  filterChipEmoji: { fontSize: 13 },
+  activeFilterChip: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   activeFilterChipText: { color: '#fff' },
-  vegDotSmall: { width: 8, height: 8, borderRadius: 4 },
+  activeFilterChipVeg: { backgroundColor: 'rgba(46,125,50,0.18)', borderColor: COLORS.vegGreen },
+  activeFilterChipTextVeg: { color: COLORS.vegGreen, fontWeight: '700' },
+  activeFilterChipNonVeg: { backgroundColor: 'rgba(192,57,43,0.18)', borderColor: COLORS.nonVegRed },
+  activeFilterChipTextNonVeg: { color: COLORS.nonVegRed, fontWeight: '700' },
+  vegIconBox: { width: 13, height: 13, borderWidth: 1.5, borderRadius: 3, justifyContent: 'center', alignItems: 'center' },
+  vegDotSmall: { width: 6, height: 6, borderRadius: 3 },
+  nonVegTriangle: {
+    width: 0, height: 0, borderLeftWidth: 4, borderRightWidth: 4, borderBottomWidth: 6,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+  },
+
+  noResultsWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
+  noResultsText: { fontSize: 14, color: COLORS.darkTextSecondary, fontWeight: '600' },
+  noResultsResetBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, marginTop: 4 },
+  noResultsResetText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   menuCategoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 16, paddingTop: 22, paddingBottom: 8 },
   menuCategory: { fontSize: 17, fontWeight: '800', color: COLORS.white },
   menuCategoryCount: { fontSize: 12, color: COLORS.darkTextSecondary },
 
+  menuFab: {
+    position: 'absolute', right: 20, bottom: 20, zIndex: 90,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.primary, borderRadius: 24,
+    paddingHorizontal: 18, paddingVertical: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
+  },
+  menuFabRaised: { bottom: 96 },
+  menuFabText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  jumpSheet: {
+    backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingBottom: 28, borderTopWidth: 1, borderColor: COLORS.darkBorder,
+  },
+  sheetHandleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.darkBorder },
+  jumpSheetTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white, paddingVertical: 14 },
+
+  jumpRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder,
+  },
+  jumpRowActive: { borderBottomColor: COLORS.primary },
+  jumpRowText: { fontSize: 15, fontWeight: '600', color: COLORS.darkTextSecondary },
+  jumpRowTextActive: { color: COLORS.primary, fontWeight: '800' },
+  jumpRowCount: { fontSize: 12, color: COLORS.darkTextSecondary },
+
+  filterGroupLabel: { fontSize: 13, fontWeight: '700', color: COLORS.white, marginTop: 10, marginBottom: 10 },
+  filterOptionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  filterOptionChip: {
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
+    borderWidth: 1.5, borderColor: COLORS.darkBorder, backgroundColor: COLORS.darkCardAlt,
+  },
+  filterOptionText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
+  filterApplyBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 18 },
+  filterApplyBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
   cartFab: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   cartFabInner: {
-    backgroundColor: COLORS.primary, borderRadius: 16, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 16,
+    backgroundColor: COLORS.primary, borderRadius: 14, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10,
     shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 10,
   },
-  cartFabLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cartFabLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cartBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   cartBadgeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  cartFabText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  cartFabText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  cartFabRestName: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 11, marginTop: 1, maxWidth: 160 },
   cartFabRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cartFabPrice: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

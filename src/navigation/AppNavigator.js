@@ -37,28 +37,29 @@ function HomeTabs() {
         tabBarInactiveTintColor: COLORS.gray,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 22,
-          left: 20,
-          right: 20,
-          height: 64,
-          borderRadius: 24,
+          bottom: 18,
+          left: 60,
+          right: 60,
+          height: 52,
+          borderRadius: 20,
           backgroundColor: 'rgba(255,255,255,0.82)',
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.6)',
           paddingBottom: 0,
-          paddingTop: 8,
+          paddingTop: 6,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 10 },
           shadowOpacity: 0.15,
           shadowRadius: 20,
           elevation: 12,
         },
-        tabBarItemStyle: { paddingVertical: 2 },
+        tabBarItemStyle: { paddingVertical: 0 },
+        tabBarLabelStyle: { fontSize: 11, marginTop: -2, marginBottom: 4 },
+        tabBarIconStyle: { marginTop: 2 },
         tabBarIcon: ({ color, size, focused }) => {
           const icons = {
             Home: focused ? 'home' : 'home-outline',
-            Search: focused ? 'search' : 'search-outline',
             Orders: focused ? 'receipt' : 'receipt-outline',
             Profile: focused ? 'person' : 'person-outline',
           };
@@ -67,7 +68,6 @@ function HomeTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen
         name="Orders"
         component={OrderHistoryScreen}
@@ -104,6 +104,7 @@ export default function AppNavigator() {
         ) : (
           <>
             <Stack.Screen name="Main" component={HomeTabs} />
+            <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
             <Stack.Screen name="Cart" component={CartScreen} />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
