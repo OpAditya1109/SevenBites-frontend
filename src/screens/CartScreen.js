@@ -16,7 +16,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
   getRestaurantById, getDeliveryEstimate, getActiveCoupons, applyCoupon,
-  createRazorpayOrder, verifyPaymentAndPlaceOrder,
+  createRazorpayOrder, verifyPaymentAndPlaceOrder, getUserAddresses,
 } from '../services/api';
 import { AppLoader, LOADING_MESSAGES, ButtonLoader } from '../components/AppLoader';
 import StatusPopup from '../components/StatusPopup';
@@ -61,7 +61,28 @@ export default function CartScreen({ navigation }) {
   const loadAddress = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(ACTIVE_ADDRESS_KEY);
-      if (stored) setActiveAddress(JSON.parse(stored));
+      if (!stored) return;
+      const cached = JSON.parse(stored);
+      setActiveAddress(cached);
+
+      // The cached copy in AsyncStorage can be stale — e.g. it was saved
+      // before this address had latitude/longitude, and nothing ever
+      // refreshes it after that. Re-check against the backend so orders
+      // placed from here actually carry real coordinates instead of
+      // silently reusing an old null snapshot forever.
+      if (cached?._id) {
+        try {
+          const res = await getUserAddresses();
+          const fresh = (res.data.data || res.data || []).find((a) => a._id === cached._id);
+          if (fresh && (fresh.latitude !== cached.latitude || fresh.longitude !== cached.longitude)) {
+            setActiveAddress(fresh);
+            await AsyncStorage.setItem(ACTIVE_ADDRESS_KEY, JSON.stringify(fresh));
+          }
+        } catch {
+          // No network or request failed — keep using the cached address,
+          // same as before this refresh existed.
+        }
+      }
     } catch { /* silent */ }
   }, []);
 
@@ -177,6 +198,12 @@ const baseDeliveryFee = TESTING_ZERO_FEES
       discountAmount,
       deliveryAddress: formatAddressString(activeAddress),
       addressId: activeAddress._id,
+      // Needed so OrderTrackingScreen's map has somewhere to draw the
+      // destination pin/route to — without this the order is created with
+      // deliveryLatitude/deliveryLongitude as null no matter what the
+      // Address document itself has stored.
+      deliveryLatitude: activeAddress.latitude ?? null,
+      deliveryLongitude: activeAddress.longitude ?? null,
       // Real distance-based ETA already fetched above for the on-screen "Delivery in X mins"
       // row — attach it here too so OrderTrackingScreen shows the same real number instead
       // of the backend's generic "30-45 min" default.
