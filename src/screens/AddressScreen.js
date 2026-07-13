@@ -118,7 +118,21 @@ export default function AddressScreen({ navigation, route }) {
     }
     setSaving(true);
     try {
-      const res = await addAddress(form);
+      let payload = form;
+
+      // The GPS "Use current location" flow already fills latitude/longitude.
+      // But when someone types the address in manually, nothing has ever set
+      // them — geocode the typed address here so they don't go to the
+      // backend as null (this is what the tracking map on the order screen
+      // needs to draw a route to this address).
+      if (form.latitude == null || form.longitude == null) {
+        const coords = await geocodeTypedAddress(form);
+        if (coords) {
+          payload = { ...form, latitude: coords.latitude, longitude: coords.longitude };
+        }
+      }
+
+      const res = await addAddress(payload);
       const saved = res.data.data || res.data;
       const updated = [...addresses, saved];
       setAddresses(updated);
@@ -134,6 +148,28 @@ export default function AddressScreen({ navigation, route }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Turns the typed street/city/state/pincode fields into coordinates via
+  // Expo's built-in geocoder — no extra package or API key needed since
+  // expo-location is already a dependency (it's the same one used for GPS
+  // detect above). Failing quietly here is intentional: if geocoding can't
+  // resolve the address, the address still saves — it just won't show on
+  // the live tracking map, same as today.
+  const geocodeTypedAddress = async (f) => {
+    const query = [f.flatNo, f.street, f.landmark, f.city, f.state, f.pincode]
+      .filter(Boolean)
+      .join(', ');
+    if (!query.trim()) return null;
+    try {
+      const results = await Location.geocodeAsync(query);
+      if (results && results.length > 0) {
+        return { latitude: results[0].latitude, longitude: results[0].longitude };
+      }
+    } catch {
+      // Geocoding failed (no network, no match, etc.) — save without coords.
+    }
+    return null;
   };
 
   // ── Set default ───────────────────────────────────────────────
