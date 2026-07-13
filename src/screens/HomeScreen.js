@@ -10,7 +10,6 @@ import { COLORS, HOME_CATEGORIES } from '../utils/constants';
 import { getRestaurants } from '../services/api';
 import RestaurantCard from '../components/RestaurantCard';
 import CategoryChip from '../components/CategoryChip';
-import OfferBanner from '../components/OfferBanner';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
@@ -109,9 +108,6 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.searchDivider} />
           <Text style={styles.voiceText}>Voice</Text>
         </TouchableOpacity>
-
-        {/* ── Live offer banner ────────────────────────────────── */}
-        <OfferBanner onPress={() => console.log('Banner tapped')} />
 
         {/* ── Category icons ───────────────────────────────────── */}
         <FlatList

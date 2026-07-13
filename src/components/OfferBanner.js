@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
@@ -12,35 +12,53 @@ export default function OfferBanner({
   note = 'Ends tonight',
   onPress,
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
   return (
     <TouchableOpacity activeOpacity={0.9} style={styles.wrap} onPress={onPress}>
-      <ImageBackground source={{ uri: BANNER_IMAGE }} style={styles.bg} imageStyle={styles.bgImage}>
-        <LinearGradient
-          colors={['rgba(20,14,16,0.95)', 'rgba(20,14,16,0.6)', 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+      {/* Base gradient — always renders, never depends on network */}
+      <LinearGradient
+        colors={['#2B1A1E', '#1F1418']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Remote image — only rendered on top if it loads successfully */}
+      {!imageFailed && (
+        <Image
+          source={{ uri: BANNER_IMAGE }}
           style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
         />
-        <View style={styles.content}>
-          <View style={styles.liveTag}>
-            <Text style={styles.liveTagText}>LIVE OFFER</Text>
-          </View>
-          <Text style={styles.headline}>{title}</Text>
-          <Text style={styles.note}>Use code {code} · {note}</Text>
-          <View style={styles.ctaBtn}>
-            <Text style={styles.ctaText}>Order now</Text>
-            <Ionicons name="arrow-forward" size={14} color={COLORS.black} />
-          </View>
+      )}
+
+      {/* Dark gradient overlay so text stays readable over the image */}
+      <LinearGradient
+        colors={['rgba(20,14,16,0.95)', 'rgba(20,14,16,0.6)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={styles.content}>
+        <View style={styles.liveTag}>
+          <Text style={styles.liveTagText}>LIVE OFFER</Text>
         </View>
-      </ImageBackground>
+        <Text style={styles.headline}>{title}</Text>
+        <Text style={styles.note}>Use code {code} · {note}</Text>
+        <View style={styles.ctaBtn}>
+          <Text style={styles.ctaText}>Order now</Text>
+          <Ionicons name="arrow-forward" size={14} color={COLORS.black} />
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginHorizontal: 16, marginTop: 18, borderRadius: 20, overflow: 'hidden', height: 168 },
-  bg: { flex: 1, justifyContent: 'flex-end' },
-  bgImage: { borderRadius: 20 },
+  wrap: { marginHorizontal: 16, marginTop: 18, borderRadius: 20, overflow: 'hidden', height: 168, justifyContent: 'flex-end' },
   content: { padding: 18, maxWidth: '78%' },
   liveTag: {
     alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.15)',
@@ -54,4 +72,4 @@ const styles = StyleSheet.create({
     borderRadius: 22, paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start',
   },
   ctaText: { color: COLORS.black, fontWeight: '700', fontSize: 13 },
-}); 
+});
