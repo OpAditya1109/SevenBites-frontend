@@ -38,6 +38,10 @@ export const LOADING_MESSAGES = {
     '🔒 Talking to the payment gateway...',
     '🤝 Almost there, hang tight...',
   ],
+  order: [
+    '📍 Locating your order...',
+    '🛵 Checking on your rider...',
+  ],
 };
 
 // Full-screen / section loader — spinner + a rotating message.
@@ -70,8 +74,8 @@ export function ButtonLoader({ label = 'Please wait...', color = '#fff' }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 48 },
-  text: { fontSize: 17, lineHeight: 24, color: COLORS.darkGray, fontWeight: '700', textAlign: 'center', paddingHorizontal: 28 },
+  wrap: { alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 48, backgroundColor: COLORS.darkBg },
+  text: { fontSize: 17, lineHeight: 24, color: COLORS.darkTextSecondary, fontWeight: '700', textAlign: 'center', paddingHorizontal: 28 },
   buttonWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonText: { fontSize: 15, fontWeight: '700' },
 });

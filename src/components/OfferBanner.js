@@ -16,7 +16,6 @@ export default function OfferBanner({
 
   return (
     <TouchableOpacity activeOpacity={0.9} style={styles.wrap} onPress={onPress}>
-      {/* Base gradient — always renders, never depends on network */}
       <LinearGradient
         colors={['#2B1A1E', '#1F1418']}
         start={{ x: 0, y: 0 }}
@@ -24,7 +23,6 @@ export default function OfferBanner({
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Remote image — only rendered on top if it loads successfully */}
       {!imageFailed && (
         <Image
           source={{ uri: BANNER_IMAGE }}
@@ -34,7 +32,6 @@ export default function OfferBanner({
         />
       )}
 
-      {/* Dark gradient overlay so text stays readable over the image */}
       <LinearGradient
         colors={['rgba(20,14,16,0.95)', 'rgba(20,14,16,0.6)', 'transparent']}
         start={{ x: 0, y: 0 }}
@@ -50,7 +47,7 @@ export default function OfferBanner({
         <Text style={styles.note}>Use code {code} · {note}</Text>
         <View style={styles.ctaBtn}>
           <Text style={styles.ctaText}>Order now</Text>
-          <Ionicons name="arrow-forward" size={14} color={COLORS.black} />
+          <Ionicons name="arrow-forward" size={14} color="#fff" />
         </View>
       </View>
     </TouchableOpacity>
@@ -68,8 +65,8 @@ const styles = StyleSheet.create({
   headline: { color: '#fff', fontSize: 19, fontWeight: '800', lineHeight: 24, marginBottom: 6 },
   note: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 12 },
   ctaBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff',
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary,
     borderRadius: 22, paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start',
   },
-  ctaText: { color: COLORS.black, fontWeight: '700', fontSize: 13 },
+  ctaText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 });

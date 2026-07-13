@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS } from '../utils/constants';
 import { getUserAddresses, addAddress, deleteAddress, setDefaultAddress } from '../services/api';
 import { AppLoader, LOADING_MESSAGES, ButtonLoader } from '../components/AppLoader';
 
@@ -17,7 +17,6 @@ const LABEL_OPTIONS = ['Home', 'Work', 'Other'];
 const LABEL_ICONS = { Home: 'home', Work: 'briefcase', Other: 'location' };
 
 export default function AddressScreen({ navigation, route }) {
-  // If launched from HomeScreen with onSelect callback, we support selection mode
   const onSelect = route?.params?.onSelect;
 
   const [addresses, setAddresses] = useState([]);
@@ -28,10 +27,7 @@ export default function AddressScreen({ navigation, route }) {
   const [gpsLoading, setGpsLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  // ── Load saved addresses ──────────────────────────────────────
-  useEffect(() => {
-    loadAddresses();
-  }, []);
+  useEffect(() => { loadAddresses(); }, []);
 
   const loadAddresses = async () => {
     setLoading(true);
@@ -45,45 +41,29 @@ export default function AddressScreen({ navigation, route }) {
     }
   };
 
-  // ── Bottom sheet animation ────────────────────────────────────
   const openSheet = (prefill = {}) => {
     setForm({ ...EMPTY_FORM, ...prefill });
     setShowSheet(true);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start();
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
   };
 
   const closeSheet = () => {
-    Animated.timing(slideAnim, {
-      toValue: SCREEN_HEIGHT,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => setShowSheet(false));
+    Animated.timing(slideAnim, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true })
+      .start(() => setShowSheet(false));
   };
 
-  // ── GPS: detect current location & reverse geocode ───────────
   const detectLocation = async () => {
     setGpsLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is needed to auto-detect your address. You can still type it manually.',
-        );
+        Alert.alert('Permission Denied', 'Location permission is needed to auto-detect your address. You can still type it manually.');
         setGpsLoading(false);
         openSheet();
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const [geocode] = await Location.reverseGeocodeAsync({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
@@ -110,7 +90,6 @@ export default function AddressScreen({ navigation, route }) {
     }
   };
 
-  // ── Save address to backend ───────────────────────────────────
   const handleSave = async () => {
     if (!form.street.trim() || !form.city.trim()) {
       Alert.alert('Required', 'Street address and city are required.');
@@ -120,11 +99,6 @@ export default function AddressScreen({ navigation, route }) {
     try {
       let payload = form;
 
-      // The GPS "Use current location" flow already fills latitude/longitude.
-      // But when someone types the address in manually, nothing has ever set
-      // them — geocode the typed address here so they don't go to the
-      // backend as null (this is what the tracking map on the order screen
-      // needs to draw a route to this address).
       if (form.latitude == null || form.longitude == null) {
         const coords = await geocodeTypedAddress(form);
         if (coords) {
@@ -138,7 +112,6 @@ export default function AddressScreen({ navigation, route }) {
       setAddresses(updated);
       closeSheet();
 
-      // If in selection mode (called from HomeScreen), return address and pop
       if (onSelect) {
         onSelect(saved);
         navigation.goBack();
@@ -150,16 +123,8 @@ export default function AddressScreen({ navigation, route }) {
     }
   };
 
-  // Turns the typed street/city/state/pincode fields into coordinates via
-  // Expo's built-in geocoder — no extra package or API key needed since
-  // expo-location is already a dependency (it's the same one used for GPS
-  // detect above). Failing quietly here is intentional: if geocoding can't
-  // resolve the address, the address still saves — it just won't show on
-  // the live tracking map, same as today.
   const geocodeTypedAddress = async (f) => {
-    const query = [f.flatNo, f.street, f.landmark, f.city, f.state, f.pincode]
-      .filter(Boolean)
-      .join(', ');
+    const query = [f.flatNo, f.street, f.landmark, f.city, f.state, f.pincode].filter(Boolean).join(', ');
     if (!query.trim()) return null;
     try {
       const results = await Location.geocodeAsync(query);
@@ -167,18 +132,15 @@ export default function AddressScreen({ navigation, route }) {
         return { latitude: results[0].latitude, longitude: results[0].longitude };
       }
     } catch {
-      // Geocoding failed (no network, no match, etc.) — save without coords.
+      // Geocoding failed — save without coords.
     }
     return null;
   };
 
-  // ── Set default ───────────────────────────────────────────────
   const handleSetDefault = async (id) => {
     try {
       await setDefaultAddress(id);
-      setAddresses((prev) =>
-        prev.map((a) => ({ ...a, isDefault: a._id === id }))
-      );
+      setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a._id === id })));
       if (onSelect) {
         const selected = addresses.find((a) => a._id === id);
         if (selected) { onSelect({ ...selected, isDefault: true }); navigation.goBack(); }
@@ -188,7 +150,6 @@ export default function AddressScreen({ navigation, route }) {
     }
   };
 
-  // ── Delete ────────────────────────────────────────────────────
   const handleDelete = (id) => {
     Alert.alert('Delete Address', 'Remove this address?', [
       { text: 'Cancel', style: 'cancel' },
@@ -208,29 +169,18 @@ export default function AddressScreen({ navigation, route }) {
 
   const updateForm = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // ── Render ────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.black} />
+          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {onSelect ? 'Select Address' : 'My Addresses'}
-        </Text>
+        <Text style={styles.headerTitle}>{onSelect ? 'Select Address' : 'My Addresses'}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-
-        {/* ── GPS Detect Banner ─────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.gpsBanner}
-          onPress={detectLocation}
-          disabled={gpsLoading}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.gpsBanner} onPress={detectLocation} disabled={gpsLoading} activeOpacity={0.8}>
           {gpsLoading ? (
             <ActivityIndicator size={20} color={COLORS.primary} />
           ) : (
@@ -238,30 +188,21 @@ export default function AddressScreen({ navigation, route }) {
           )}
           <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={styles.gpsTitle}>Use current location</Text>
-            <Text style={styles.gpsSub}>
-              {gpsLoading ? 'Detecting your location…' : 'Auto-detect via GPS and add address'}
-            </Text>
+            <Text style={styles.gpsSub}>{gpsLoading ? 'Detecting your location…' : 'Auto-detect via GPS and add address'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.gray} />
+          <Ionicons name="chevron-forward" size={18} color={COLORS.darkTextSecondary} />
         </TouchableOpacity>
 
-        {/* ── Add manually ──────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.manualBtn}
-          onPress={() => openSheet()}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.manualBtn} onPress={() => openSheet()} activeOpacity={0.8}>
           <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
           <Text style={styles.manualBtnText}>Enter address manually</Text>
         </TouchableOpacity>
 
-        {/* ── Saved Addresses ───────────────────────────────── */}
         {loading ? (
-                   <AppLoader messages={LOADING_MESSAGES.address} />
-
+          <AppLoader messages={LOADING_MESSAGES.address} />
         ) : addresses.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📍</Text>
+            <Ionicons name="location-outline" size={48} color={COLORS.darkTextSecondary} />
             <Text style={styles.emptyTitle}>No saved addresses</Text>
             <Text style={styles.emptySub}>Add an address to get started</Text>
           </View>
@@ -275,11 +216,9 @@ export default function AddressScreen({ navigation, route }) {
                     <Ionicons
                       name={LABEL_ICONS[addr.type] || 'location'}
                       size={15}
-                      color={addr.isDefault ? COLORS.primary : COLORS.gray}
+                      color={addr.isDefault ? COLORS.primary : COLORS.darkTextSecondary}
                     />
-                    <Text style={[styles.addrType, addr.isDefault && styles.addrTypeDefault]}>
-                      {addr.type}
-                    </Text>
+                    <Text style={[styles.addrType, addr.isDefault && styles.addrTypeDefault]}>{addr.type}</Text>
                     {addr.isDefault && (
                       <View style={styles.defaultBadge}>
                         <Text style={styles.defaultBadgeText}>DEFAULT</Text>
@@ -287,31 +226,21 @@ export default function AddressScreen({ navigation, route }) {
                     )}
                   </View>
                   <TouchableOpacity onPress={() => handleDelete(addr._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="trash-outline" size={17} color={COLORS.gray} />
+                    <Ionicons name="trash-outline" size={17} color={COLORS.darkTextSecondary} />
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.addrText}>
-                  {[addr.flatNo, addr.street, addr.landmark].filter(Boolean).join(', ')}
-                </Text>
-                <Text style={styles.addrCity}>
-                  {[addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')}
-                </Text>
+                <Text style={styles.addrText}>{[addr.flatNo, addr.street, addr.landmark].filter(Boolean).join(', ')}</Text>
+                <Text style={styles.addrCity}>{[addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')}</Text>
 
                 {!addr.isDefault && (
-                  <TouchableOpacity
-                    style={styles.setDefaultBtn}
-                    onPress={() => handleSetDefault(addr._id)}
-                  >
+                  <TouchableOpacity style={styles.setDefaultBtn} onPress={() => handleSetDefault(addr._id)}>
                     <Text style={styles.setDefaultText}>Set as default</Text>
                   </TouchableOpacity>
                 )}
 
                 {onSelect && (
-                  <TouchableOpacity
-                    style={styles.selectBtn}
-                    onPress={() => { onSelect(addr); navigation.goBack(); }}
-                  >
+                  <TouchableOpacity style={styles.selectBtn} onPress={() => { onSelect(addr); navigation.goBack(); }}>
                     <Text style={styles.selectBtnText}>Deliver here</Text>
                   </TouchableOpacity>
                 )}
@@ -321,15 +250,12 @@ export default function AddressScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* ── Add Address Bottom Sheet ──────────────────────────── */}
       {showSheet && (
         <Modal transparent animationType="none" onRequestClose={closeSheet}>
           <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeSheet} />
           <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-                {/* Sheet Handle */}
                 <View style={styles.sheetHandleRow}>
                   <View style={styles.sheetHandle} />
                 </View>
@@ -337,11 +263,10 @@ export default function AddressScreen({ navigation, route }) {
                 <View style={styles.sheetHeader}>
                   <Text style={styles.sheetTitle}>Add Address</Text>
                   <TouchableOpacity onPress={closeSheet}>
-                    <Ionicons name="close" size={22} color={COLORS.black} />
+                    <Ionicons name="close" size={22} color={COLORS.white} />
                   </TouchableOpacity>
                 </View>
 
-                {/* Type Selector */}
                 <Text style={styles.fieldLabel}>Address Type</Text>
                 <View style={styles.typeRow}>
                   {LABEL_OPTIONS.map((opt) => (
@@ -350,19 +275,12 @@ export default function AddressScreen({ navigation, route }) {
                       style={[styles.typeChip, form.type === opt && styles.typeChipActive]}
                       onPress={() => updateForm('type', opt)}
                     >
-                      <Ionicons
-                        name={LABEL_ICONS[opt]}
-                        size={14}
-                        color={form.type === opt ? COLORS.primary : COLORS.gray}
-                      />
-                      <Text style={[styles.typeChipText, form.type === opt && styles.typeChipTextActive]}>
-                        {opt}
-                      </Text>
+                      <Ionicons name={LABEL_ICONS[opt]} size={14} color={form.type === opt ? COLORS.primary : COLORS.darkTextSecondary} />
+                      <Text style={[styles.typeChipText, form.type === opt && styles.typeChipTextActive]}>{opt}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                {/* Fields */}
                 {[
                   { key: 'flatNo', label: 'Flat / House No.', placeholder: 'e.g. 201, Tower B', icon: 'home-outline' },
                   { key: 'street', label: 'Street Address *', placeholder: 'Street, area, locality', icon: 'map-outline', multiline: true },
@@ -374,7 +292,7 @@ export default function AddressScreen({ navigation, route }) {
                   <View key={f.key} style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>{f.label}</Text>
                     <View style={[styles.fieldInputRow, f.multiline && { alignItems: 'flex-start', paddingVertical: 10 }]}>
-                      <Ionicons name={f.icon} size={16} color={COLORS.gray} style={{ marginTop: f.multiline ? 2 : 0, marginRight: 10 }} />
+                      <Ionicons name={f.icon} size={16} color={COLORS.darkTextSecondary} style={{ marginTop: f.multiline ? 2 : 0, marginRight: 10 }} />
                       <TextInput
                         style={[styles.fieldInput, f.multiline && { height: 70, textAlignVertical: 'top' }]}
                         placeholder={f.placeholder}
@@ -382,21 +300,14 @@ export default function AddressScreen({ navigation, route }) {
                         onChangeText={(v) => updateForm(f.key, v)}
                         keyboardType={f.keyboard || 'default'}
                         multiline={f.multiline}
-                        placeholderTextColor={COLORS.placeholder}
+                        placeholderTextColor={COLORS.darkTextSecondary}
                       />
                     </View>
                   </View>
                 ))}
 
-               <TouchableOpacity
-                  style={[styles.saveBtn, saving && { opacity: 0.7 }]}
-                  onPress={handleSave}
-                  disabled={saving}
-                >
-                  {saving
-                    ? <ButtonLoader label="Saving..." />
-                    : <Text style={styles.saveBtnText}>Save Address</Text>
-                  }
+                <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving}>
+                  {saving ? <ButtonLoader label="Saving..." /> : <Text style={styles.saveBtnText}>Save Address</Text>}
                 </TouchableOpacity>
 
                 <View style={{ height: 32 }} />
@@ -410,105 +321,80 @@ export default function AddressScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.darkBg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.darkBg, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.black },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white },
 
   gpsBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.white, margin: 16, borderRadius: 16, padding: 16,
-    borderWidth: 1.5, borderColor: COLORS.primary + '30',
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.darkCard, margin: 16,
+    borderRadius: 16, padding: 16, borderWidth: 1.5, borderColor: 'rgba(226,55,68,0.25)',
   },
-  gpsTitle: { fontSize: 15, fontWeight: '700', color: COLORS.black },
-  gpsSub: { fontSize: 12, color: COLORS.gray, marginTop: 2 },
+  gpsTitle: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  gpsSub: { fontSize: 12, color: COLORS.darkTextSecondary, marginTop: 2 },
 
-  manualBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 16, marginBottom: 8, gap: 8,
-  },
+  manualBtn: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, gap: 8 },
   manualBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
 
-  sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: COLORS.gray,
-    letterSpacing: 0.8, marginHorizontal: 16, marginTop: 16, marginBottom: 8,
-  },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: COLORS.darkTextSecondary, letterSpacing: 0.8, marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
   addressCard: {
-    backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 12,
-    borderRadius: 16, padding: 16, gap: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    backgroundColor: COLORS.darkCard, marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, gap: 4,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  defaultCard: { borderWidth: 1.5, borderColor: COLORS.primary + '40' },
+  defaultCard: { borderWidth: 1.5, borderColor: 'rgba(226,55,68,0.4)' },
   addrTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   addrTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  addrType: { fontSize: 15, fontWeight: '700', color: COLORS.black },
+  addrType: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   addrTypeDefault: { color: COLORS.primary },
-  defaultBadge: {
-    backgroundColor: '#fff5f5', borderRadius: 4,
-    paddingHorizontal: 6, paddingVertical: 2,
-  },
+  defaultBadge: { backgroundColor: 'rgba(226,55,68,0.15)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   defaultBadgeText: { fontSize: 9, fontWeight: '800', color: COLORS.primary, letterSpacing: 0.5 },
-  addrText: { fontSize: 13, color: COLORS.darkGray, lineHeight: 20 },
-  addrCity: { fontSize: 12, color: COLORS.gray, marginBottom: 8 },
+  addrText: { fontSize: 13, color: COLORS.darkTextSecondary, lineHeight: 20 },
+  addrCity: { fontSize: 12, color: COLORS.darkTextSecondary, marginBottom: 8 },
   setDefaultBtn: { alignSelf: 'flex-start' },
   setDefaultText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
-  selectBtn: {
-    marginTop: 8, backgroundColor: COLORS.primary,
-    borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-  },
+  selectBtn: { marginTop: 8, backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   selectBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   emptyState: { alignItems: 'center', marginTop: 60, gap: 8 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.black },
-  emptySub: { fontSize: 14, color: COLORS.gray },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.white },
+  emptySub: { fontSize: 14, color: COLORS.darkTextSecondary },
 
-  // Bottom sheet
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 20, maxHeight: SCREEN_HEIGHT * 0.92,
+    backgroundColor: COLORS.darkCard, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, maxHeight: SCREEN_HEIGHT * 0.92, borderTopWidth: 1, borderColor: COLORS.darkBorder,
   },
   sheetHandleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.darkBorder },
   sheetHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 16,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder, marginBottom: 16,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: COLORS.black },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white },
 
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   typeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.darkBorder,
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: COLORS.darkCardAlt,
   },
-  typeChipActive: { borderColor: COLORS.primary, backgroundColor: '#fff5f5' },
-  typeChipText: { fontSize: 13, fontWeight: '600', color: COLORS.gray },
+  typeChipActive: { borderColor: COLORS.primary, backgroundColor: 'rgba(226,55,68,0.12)' },
+  typeChipText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
   typeChipTextActive: { color: COLORS.primary },
 
   fieldGroup: { marginBottom: 14 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.gray, marginBottom: 6, marginLeft: 2 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.darkTextSecondary, marginBottom: 6, marginLeft: 2 },
   fieldInputRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: 12, paddingHorizontal: 12, height: 50,
-    backgroundColor: '#FAFAFA',
+    flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.darkBorder,
+    borderRadius: 12, paddingHorizontal: 12, height: 50, backgroundColor: COLORS.darkCardAlt,
   },
-  fieldInput: { flex: 1, fontSize: 14, color: COLORS.black },
+  fieldInput: { flex: 1, fontSize: 14, color: COLORS.white },
 
   saveBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginTop: 8,
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

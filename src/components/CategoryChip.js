@@ -24,6 +24,6 @@ const styles = StyleSheet.create({
   },
   iconCircleSelected: { borderColor: COLORS.primary },
   emoji: { fontSize: 24 },
-  name: { fontSize: 11, fontWeight: '600', color: COLORS.darkGray, textAlign: 'center' },
+  name: { fontSize: 11, fontWeight: '600', color: COLORS.darkTextSecondary, textAlign: 'center' },
   nameSelected: { color: COLORS.primary, fontWeight: '700' },
 });

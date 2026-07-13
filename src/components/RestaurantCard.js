@@ -100,7 +100,7 @@ export default function RestaurantCard({ restaurant, onPress, cardWidth }) {
 
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={13} color={COLORS.gray} />
+            <Ionicons name="time-outline" size={13} color={COLORS.darkTextSecondary} />
             <Text style={styles.metaText}>
               {typeof deliveryTime === 'number' ? `${deliveryTime} min` : deliveryTime || '30-45 min'}
             </Text>
@@ -132,21 +132,21 @@ export default function RestaurantCard({ restaurant, onPress, cardWidth }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 16,
+    backgroundColor: COLORS.darkCard, marginHorizontal: 16, marginBottom: 16,
     borderRadius: 18, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  closedCard: { opacity: 0.7 },
-  imageContainer: { height: 170, backgroundColor: '#f8f8f8', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  closedCard: { opacity: 0.6 },
+  imageContainer: { height: 170, backgroundColor: '#111113', justifyContent: 'center', alignItems: 'center', position: 'relative' },
   image: { width: '100%', height: '100%' },
   emoji: { fontSize: 64 },
-  closedOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
+  closedOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' },
   closedText: { color: '#fff', fontWeight: '800', fontSize: 18, letterSpacing: 2 },
 
   topLeftBadges: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', gap: 6 },
   discountBadge: { backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   discountText: { color: '#fff', fontWeight: '700', fontSize: 11 },
-  popularBadge: { backgroundColor: 'rgba(20,14,14,0.85)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  popularBadge: { backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   popularText: { color: '#fff', fontWeight: '700', fontSize: 11 },
 
   favBtn: {
@@ -158,23 +158,24 @@ const styles = StyleSheet.create({
   ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.green, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, gap: 3 },
   ratingText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   ratingCount: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
-  freeDelivery: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(20,14,14,0.7)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  freeDelivery: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   freeDeliveryText: { color: '#fff', fontWeight: '700', fontSize: 10, letterSpacing: 0.3 },
 
   info: { padding: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
-  name: { fontSize: 17, fontWeight: '700', color: COLORS.black, flex: 1 },
+  name: { fontSize: 17, fontWeight: '700', color: COLORS.white, flex: 1 },
   vegBox: { width: 15, height: 15, borderRadius: 3, borderWidth: 1.3, alignItems: 'center', justifyContent: 'center' },
   vegDot: { width: 7, height: 7, borderRadius: 3.5 },
-  cuisine: { fontSize: 13, color: COLORS.gray, marginBottom: 8 },
+  cuisine: { fontSize: 13, color: COLORS.darkTextSecondary, marginBottom: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontSize: 12, color: COLORS.gray },
-  dot: { fontSize: 10, color: COLORS.placeholder },
+  metaText: { fontSize: 12, color: COLORS.darkTextSecondary },
+  dot: { fontSize: 10, color: COLORS.darkBorder },
 
   offerStrip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.offerPill,
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.darkCardAlt,
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 4, alignSelf: 'flex-start', maxWidth: '100%',
+    borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  offerStripText: { color: COLORS.primary, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  offerStripText: { color: COLORS.secondary, fontSize: 12, fontWeight: '600', flexShrink: 1 },
 });

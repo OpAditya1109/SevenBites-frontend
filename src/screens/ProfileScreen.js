@@ -1,7 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
@@ -18,8 +16,6 @@ const MENU_ITEMS = [
   { icon: 'settings-outline', label: 'Settings', screen: null },
 ];
 
-// Orders that didn't actually complete shouldn't count toward "money saved" —
-// the discount was never really captured if the order was cancelled/rejected.
 const VOID_STATUSES = ['cancelled', 'rejected'];
 
 export default function ProfileScreen({ navigation }) {
@@ -28,16 +24,12 @@ export default function ProfileScreen({ navigation }) {
   const [statsLoading, setStatsLoading] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
   const [totalSaved, setTotalSaved] = useState(0);
-  const [avgRating, setAvgRating] = useState(null); // null = no reviews written yet
+  const [avgRating, setAvgRating] = useState(null);
   const [reviewCount, setReviewCount] = useState(0);
 
   const fetchStats = useCallback(async () => {
     try {
-      const [ordersRes, reviewsRes] = await Promise.all([
-        getUserOrders(),
-        getMyReviews(),
-      ]);
-
+      const [ordersRes, reviewsRes] = await Promise.all([getUserOrders(), getMyReviews()]);
       const orders = ordersRes?.data?.data || [];
       const reviews = reviewsRes?.data?.data || [];
 
@@ -56,8 +48,6 @@ export default function ProfileScreen({ navigation }) {
       }
       setReviewCount(reviews.length);
     } catch {
-      // Backend unreachable / not logged in yet — fall back to zeroed stats
-      // rather than showing stale or fake numbers.
       setOrdersCount(0);
       setTotalSaved(0);
       setAvgRating(null);
@@ -69,8 +59,6 @@ export default function ProfileScreen({ navigation }) {
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
-  // Refresh whenever the Profile tab regains focus — e.g. right after placing
-  // an order or leaving a review, so the stats don't go stale.
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', fetchStats);
     return unsubscribe;
@@ -83,11 +71,7 @@ export default function ProfileScreen({ navigation }) {
     ]);
   };
 
-  const ratingDisplay = statsLoading
-    ? '—'
-    : avgRating !== null
-      ? `${avgRating} ⭐`
-      : 'New';
+  const ratingDisplay = statsLoading ? '—' : avgRating !== null ? `${avgRating} ⭐` : 'New';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -96,12 +80,9 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
 
-        {/* User Info */}
         <View style={styles.userCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.name?.charAt(0)?.toUpperCase() || '?'}
-            </Text>
+            <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || '?'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.userName}>{user?.name || 'User'}</Text>
@@ -113,7 +94,6 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Stats — now pulled live from /orders/my-orders and /reviews/mine */}
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{statsLoading ? '—' : ordersCount}</Text>
@@ -127,13 +107,10 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{ratingDisplay}</Text>
-            <Text style={styles.statLabel}>
-              {statsLoading || avgRating !== null ? 'Rating' : 'No reviews yet'}
-            </Text>
+            <Text style={styles.statLabel}>{statsLoading || avgRating !== null ? 'Rating' : 'No reviews yet'}</Text>
           </View>
         </View>
 
-        {/* Menu */}
         <View style={styles.menuCard}>
           {MENU_ITEMS.map((item, index) => (
             <TouchableOpacity
@@ -145,12 +122,11 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name={item.icon} size={20} color={COLORS.primary} />
               </View>
               <Text style={styles.menuLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.gray} />
+              <Ionicons name="chevron-forward" size={16} color={COLORS.darkTextSecondary} />
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={COLORS.primary} />
           <Text style={styles.logoutText}>Logout</Text>
@@ -164,27 +140,36 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.black },
-  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, margin: 16, borderRadius: 16, padding: 16, gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  safe: { flex: 1, backgroundColor: COLORS.darkBg },
+  header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.darkBg, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.white },
+  userCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.darkCard, margin: 16,
+    borderRadius: 16, padding: 16, gap: 14, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
   avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 24, fontWeight: '800', color: '#fff' },
-  userName: { fontSize: 18, fontWeight: '700', color: COLORS.black },
-  userEmail: { fontSize: 13, color: COLORS.gray, marginTop: 2 },
-  userPhone: { fontSize: 13, color: COLORS.gray },
-  editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff5f5', justifyContent: 'center', alignItems: 'center' },
-  statsCard: { flexDirection: 'row', backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  userName: { fontSize: 18, fontWeight: '700', color: COLORS.white },
+  userEmail: { fontSize: 13, color: COLORS.darkTextSecondary, marginTop: 2 },
+  userPhone: { fontSize: 13, color: COLORS.darkTextSecondary },
+  editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.darkCardAlt, justifyContent: 'center', alignItems: 'center' },
+  statsCard: {
+    flexDirection: 'row', backgroundColor: COLORS.darkCard, marginHorizontal: 16, borderRadius: 16,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
   statItem: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800', color: COLORS.black },
-  statLabel: { fontSize: 12, color: COLORS.gray, marginTop: 4 },
-  statDivider: { width: 1, backgroundColor: COLORS.border },
-  menuCard: { backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  statValue: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  statLabel: { fontSize: 12, color: COLORS.darkTextSecondary, marginTop: 4 },
+  statDivider: { width: 1, backgroundColor: COLORS.darkBorder },
+  menuCard: { backgroundColor: COLORS.darkCard, marginHorizontal: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.darkBorder },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
   lastItem: { borderBottomWidth: 0 },
-  menuIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#fff5f5', justifyContent: 'center', alignItems: 'center' },
-  menuLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.black },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 16, borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 14, padding: 14 },
+  menuIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.darkCardAlt, justifyContent: 'center', alignItems: 'center' },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.white },
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 16,
+    borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 14, padding: 14,
+  },
   logoutText: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
-  version: { textAlign: 'center', fontSize: 12, color: COLORS.placeholder, marginBottom: 8 },
+  version: { textAlign: 'center', fontSize: 12, color: COLORS.darkTextSecondary, marginBottom: 8 },
 });

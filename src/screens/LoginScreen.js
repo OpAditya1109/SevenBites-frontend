@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS } from '../utils/constants';
+import { COLORS, SPACING } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { ButtonLoader } from '../components/AppLoader';
 
@@ -31,21 +31,19 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.darkBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>🍽</Text>
           <Text style={styles.brand}>Sevenbites</Text>
           <Text style={styles.tagline}>Find the best food near you</Text>
         </View>
 
-        {/* Form */}
         <View style={styles.form}>
           <Text style={styles.formTitle}>Welcome Back 👋</Text>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
+            <Ionicons name="mail-outline" size={20} color={COLORS.darkTextSecondary} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Email address"
@@ -53,22 +51,22 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              placeholderTextColor={COLORS.placeholder}
+              placeholderTextColor={COLORS.darkTextSecondary}
             />
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.darkTextSecondary} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { flex: 1 }]}
               placeholder="Password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              placeholderTextColor={COLORS.placeholder}
+              placeholderTextColor={COLORS.darkTextSecondary}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.gray} />
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.darkTextSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -76,7 +74,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-    <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading} activeOpacity={0.9}>
             {loading ? <ButtonLoader label="Signing you in..." /> : <Text style={styles.loginText}>Login</Text>}
           </TouchableOpacity>
 
@@ -103,54 +101,36 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
+  container: { flex: 1, backgroundColor: COLORS.darkBg },
   content: { padding: SPACING.xl },
   header: { alignItems: 'center', marginTop: 60, marginBottom: 40 },
   logo: { fontSize: 60 },
   brand: { fontSize: 32, fontWeight: '800', color: COLORS.primary, marginTop: 8 },
-  tagline: { fontSize: 14, color: COLORS.gray, marginTop: 4 },
+  tagline: { fontSize: 14, color: COLORS.darkTextSecondary, marginTop: 4 },
   form: { gap: 16 },
-  formTitle: { fontSize: 22, fontWeight: '700', color: COLORS.black, marginBottom: 8 },
+  formTitle: { fontSize: 22, fontWeight: '700', color: COLORS.white, marginBottom: 8 },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 54,
-    backgroundColor: '#FAFAFA',
+    flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.darkBorder,
+    borderRadius: 12, paddingHorizontal: 16, height: 54, backgroundColor: COLORS.darkCard,
   },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, fontSize: 15, color: COLORS.black },
+  input: { flex: 1, fontSize: 15, color: COLORS.white },
   forgotBtn: { alignSelf: 'flex-end' },
   forgotText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
   loginBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    height: 54,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: COLORS.primary, borderRadius: 12, height: 54, justifyContent: 'center', alignItems: 'center',
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   loginText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  line: { flex: 1, height: 1, backgroundColor: COLORS.border },
-  orText: { fontSize: 12, color: COLORS.gray },
+  line: { flex: 1, height: 1, backgroundColor: COLORS.darkBorder },
+  orText: { fontSize: 12, color: COLORS.darkTextSecondary },
   socialBtn: {
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    height: 54,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderWidth: 1.5, borderColor: COLORS.darkBorder, borderRadius: 12, height: 54,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.darkCard,
   },
-  socialText: { fontSize: 15, fontWeight: '600', color: COLORS.black },
+  socialText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
   registerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
-  registerText: { fontSize: 14, color: COLORS.gray },
+  registerText: { fontSize: 14, color: COLORS.darkTextSecondary },
   registerLink: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
 });

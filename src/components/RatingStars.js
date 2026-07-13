@@ -15,9 +15,7 @@ export default function RatingStars({ rating = 0, size = 14 }) {
     let name = 'star-outline';
     if (rating >= i) name = 'star';
     else if (rating >= i - 0.5) name = 'star-half';
-    stars.push(
-      <Ionicons key={i} name={name} size={size} color={COLORS.rating} />
-    );
+    stars.push(<Ionicons key={i} name={name} size={size} color={COLORS.rating} />);
   }
   return <View style={styles.row}>{stars}</View>;
 }

@@ -28,6 +28,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.darkBg,
   },
   text: {
     color: '#fff',

@@ -1,33 +1,25 @@
 import React, { useState, useRef } from 'react';
-import {
-  View, Text, FlatList, Dimensions, TouchableOpacity, StyleSheet, Animated,
-} from 'react-native';
+import { View, Text, FlatList, Dimensions, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, FONTS } from '../utils/constants';
+import { COLORS } from '../utils/constants';
 
 const { width, height } = Dimensions.get('window');
 
 const slides = [
   {
-    id: '1',
-    emoji: '🍕',
-    title: 'Order Food\nYou Love',
+    id: '1', emoji: '🍕', title: 'Order Food\nYou Love',
     subtitle: 'Discover the best food & drinks in your city, delivered to you.',
-    bg: ['#E23744', '#FF6B6B'],
+    bg: ['#3A1418', '#1A0E10'],
   },
   {
-    id: '2',
-    emoji: '⚡',
-    title: 'Fast Delivery\nEvery Time',
+    id: '2', emoji: '⚡', title: 'Fast Delivery\nEvery Time',
     subtitle: 'Get your orders delivered in under 30 minutes with real-time tracking.',
-    bg: ['#FC8019', '#FFAA5A'],
+    bg: ['#3A2412', '#1A0E10'],
   },
   {
-    id: '3',
-    emoji: '💰',
-    title: 'Best Deals\n& Offers',
+    id: '3', emoji: '💰', title: 'Best Deals\n& Offers',
     subtitle: 'Save more with exclusive deals, coupons, and cashback on every order.',
-    bg: ['#48C479', '#7ED957'],
+    bg: ['#123A22', '#0B0B0D'],
   },
 ];
 
@@ -52,12 +44,12 @@ export default function OnboardingScreen({ navigation }) {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => {
-          setCurrent(Math.round(e.nativeEvent.contentOffset.x / width));
-        }}
+        onMomentumScrollEnd={(e) => setCurrent(Math.round(e.nativeEvent.contentOffset.x / width))}
         renderItem={({ item }) => (
           <LinearGradient colors={item.bg} style={styles.slide}>
-            <Text style={styles.emoji}>{item.emoji}</Text>
+            <View style={styles.emojiWrap}>
+              <Text style={styles.emoji}>{item.emoji}</Text>
+            </View>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.subtitle}>{item.subtitle}</Text>
           </LinearGradient>
@@ -65,7 +57,6 @@ export default function OnboardingScreen({ navigation }) {
         keyExtractor={(item) => item.id}
       />
 
-      {/* Dots */}
       <View style={styles.dotsContainer}>
         {slides.map((_, i) => (
           <View key={i} style={[styles.dot, current === i && styles.activeDot]} />
@@ -87,17 +78,22 @@ export default function OnboardingScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: COLORS.darkBg },
   slide: { width, height, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  emoji: { fontSize: 100, marginBottom: 40 },
-  title: { fontSize: 36, fontWeight: '800', color: '#fff', textAlign: 'center', lineHeight: 44, marginBottom: 16 },
-  subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 24 },
+  emojiWrap: {
+    width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 40,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  emoji: { fontSize: 72 },
+  title: { fontSize: 32, fontWeight: '800', color: '#fff', textAlign: 'center', lineHeight: 40, marginBottom: 16 },
+  subtitle: { fontSize: 15, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 22 },
   dotsContainer: { position: 'absolute', bottom: 120, width: '100%', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
-  activeDot: { width: 24, backgroundColor: '#fff' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)' },
+  activeDot: { width: 24, backgroundColor: COLORS.primary },
   footer: { position: 'absolute', bottom: 40, width: '100%', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 32 },
   skipBtn: { padding: 16 },
-  skipText: { fontSize: 16, color: '#fff', opacity: 0.8 },
-  nextBtn: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 30, paddingHorizontal: 24, paddingVertical: 14 },
+  skipText: { fontSize: 16, color: '#fff', opacity: 0.6 },
+  nextBtn: { backgroundColor: COLORS.primary, borderRadius: 30, paddingHorizontal: 24, paddingVertical: 14 },
   nextText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });

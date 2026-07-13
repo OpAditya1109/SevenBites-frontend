@@ -38,10 +38,10 @@ export default function RegisterScreen({ navigation }) {
   ];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.darkBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.black} />
+          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
 
         <View style={styles.header}>
@@ -52,7 +52,7 @@ export default function RegisterScreen({ navigation }) {
         <View style={styles.form}>
           {fields.map((f) => (
             <View key={f.key} style={styles.inputWrapper}>
-              <Ionicons name={f.icon} size={20} color={COLORS.gray} style={styles.inputIcon} />
+              <Ionicons name={f.icon} size={20} color={COLORS.darkTextSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder={f.placeholder}
@@ -60,27 +60,27 @@ export default function RegisterScreen({ navigation }) {
                 onChangeText={(val) => update(f.key, val)}
                 keyboardType={f.type}
                 autoCapitalize="none"
-                placeholderTextColor={COLORS.placeholder}
+                placeholderTextColor={COLORS.darkTextSecondary}
               />
             </View>
           ))}
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.darkTextSecondary} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { flex: 1 }]}
               placeholder="Password"
               value={form.password}
               onChangeText={(val) => update('password', val)}
               secureTextEntry={!showPassword}
-              placeholderTextColor={COLORS.placeholder}
+              placeholderTextColor={COLORS.darkTextSecondary}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.gray} />
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.darkTextSecondary} />
             </TouchableOpacity>
           </View>
 
-      <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} disabled={loading}>
+          <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} disabled={loading} activeOpacity={0.9}>
             {loading ? <ButtonLoader label="Creating account..." /> : <Text style={styles.registerText}>Create Account</Text>}
           </TouchableOpacity>
           <View style={styles.loginRow}>
@@ -96,40 +96,25 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
+  container: { flex: 1, backgroundColor: COLORS.darkBg },
   content: { padding: SPACING.xl },
   backBtn: { marginTop: 50, marginBottom: 24 },
   header: { marginBottom: 32 },
-  title: { fontSize: 28, fontWeight: '800', color: COLORS.black },
-  subtitle: { fontSize: 15, color: COLORS.gray, marginTop: 6 },
+  title: { fontSize: 28, fontWeight: '800', color: COLORS.white },
+  subtitle: { fontSize: 15, color: COLORS.darkTextSecondary, marginTop: 6 },
   form: { gap: 16 },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 54,
-    backgroundColor: '#FAFAFA',
+    flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.darkBorder,
+    borderRadius: 12, paddingHorizontal: 16, height: 54, backgroundColor: COLORS.darkCard,
   },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, fontSize: 15, color: COLORS.black },
+  input: { flex: 1, fontSize: 15, color: COLORS.white },
   registerBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    height: 54,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: COLORS.primary, borderRadius: 12, height: 54, justifyContent: 'center', alignItems: 'center', marginTop: 8,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   registerText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   loginRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
-  loginText: { fontSize: 14, color: COLORS.gray },
+  loginText: { fontSize: 14, color: COLORS.darkTextSecondary },
   loginLink: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
 });

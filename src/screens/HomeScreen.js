@@ -75,7 +75,7 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.white} />}
       >
         {/* ── Address + notifications ─────────────────────────── */}
         <View style={styles.headerRow}>
@@ -87,23 +87,23 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.deliverTo}>DELIVER TO</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Text style={styles.addressText} numberOfLines={1}>{addressLabel}</Text>
-                <Ionicons name="chevron-down" size={15} color={COLORS.black} />
+                <Ionicons name="chevron-down" size={15} color={COLORS.white} />
               </View>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7}>
-            <Ionicons name="notifications-outline" size={22} color={COLORS.black} />
+            <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
             <View style={styles.bellDot} />
           </TouchableOpacity>
         </View>
 
-        {/* ── Greeting removed — subtitle kept ─────────────────── */}
+        {/* ── Subtitle ──────────────────────────────────────────── */}
         <Text style={styles.craving}>What are you craving today?</Text>
 
         {/* ── Search bar ───────────────────────────────────────── */}
         <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Search')} activeOpacity={0.9}>
-          <Ionicons name="search" size={18} color="#999" />
+          <Ionicons name="search" size={18} color={COLORS.darkTextSecondary} />
           <Text style={styles.searchPlaceholder}>Search 'butter chicken' or 'biryani'</Text>
           <View style={styles.searchDivider} />
           <Text style={styles.voiceText}>Voice</Text>
@@ -185,7 +185,7 @@ export default function HomeScreen({ navigation }) {
           </>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* ── Cart FAB ──────────────────────────────────────────── */}
@@ -203,7 +203,7 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.cream },
+  safe: { flex: 1, backgroundColor: COLORS.darkBg },
 
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -214,38 +214,38 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  deliverTo: { fontSize: 10, color: COLORS.gray, fontWeight: '700', letterSpacing: 0.5 },
-  addressText: { fontSize: 15, fontWeight: '800', color: COLORS.black, maxWidth: 220 },
+  deliverTo: { fontSize: 10, color: COLORS.darkTextSecondary, fontWeight: '700', letterSpacing: 0.5 },
+  addressText: { fontSize: 15, fontWeight: '800', color: COLORS.white, maxWidth: 220 },
   bellBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.white,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.darkCard,
     alignItems: 'center', justifyContent: 'center', position: 'relative',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
   },
   bellDot: {
     position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 4,
-    backgroundColor: COLORS.primary, borderWidth: 1.5, borderColor: COLORS.white,
+    backgroundColor: COLORS.primary, borderWidth: 1.5, borderColor: COLORS.darkCard,
   },
 
-  craving: { fontSize: 15, color: COLORS.gray, fontWeight: '500', paddingHorizontal: 16, marginTop: 14, marginBottom: 14 },
+  craving: { fontSize: 15, color: COLORS.darkTextSecondary, fontWeight: '500', paddingHorizontal: 16, marginTop: 14, marginBottom: 14 },
 
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.darkCard,
     marginHorizontal: 16, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, gap: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
   },
-  searchPlaceholder: { flex: 1, fontSize: 14, color: '#999' },
-  searchDivider: { width: 1, height: 16, backgroundColor: COLORS.border },
+  searchPlaceholder: { flex: 1, fontSize: 14, color: COLORS.darkTextSecondary },
+  searchDivider: { width: 1, height: 16, backgroundColor: COLORS.darkBorder },
   voiceText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 16, marginTop: 22 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.black },
-  sectionSub: { fontSize: 12, color: COLORS.gray, marginTop: 2 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.white },
+  sectionSub: { fontSize: 12, color: COLORS.darkTextSecondary, marginTop: 2 },
   seeAll: { fontSize: 13, fontWeight: '700', color: COLORS.primary, marginTop: 3 },
 
   emptyContainer: { alignItems: 'center', marginTop: 60, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 52, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.black, marginBottom: 6 },
-  emptySub: { fontSize: 13, color: COLORS.gray, textAlign: 'center' },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white, marginBottom: 6 },
+  emptySub: { fontSize: 13, color: COLORS.darkTextSecondary, textAlign: 'center' },
 
   cartFab: {
     position: 'absolute', bottom: 24, left: 24, right: 24,

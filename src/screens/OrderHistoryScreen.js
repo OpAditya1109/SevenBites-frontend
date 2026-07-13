@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
@@ -51,15 +51,15 @@ export default function OrderHistoryScreen({ navigation }) {
       </View>
 
       {loading ? (
-       <AppLoader messages={LOADING_MESSAGES.orders} />
+        <AppLoader messages={LOADING_MESSAGES.orders} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} colors={[COLORS.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
         >
           {error ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>⚠️</Text>
+              <Ionicons name="warning-outline" size={48} color={COLORS.darkTextSecondary} />
               <Text style={styles.emptyTitle}>Couldn't load orders</Text>
               <Text style={styles.emptySubtitle}>{error}</Text>
               <TouchableOpacity style={styles.orderBtn} onPress={() => { setLoading(true); fetchOrders(); }}>
@@ -68,7 +68,7 @@ export default function OrderHistoryScreen({ navigation }) {
             </View>
           ) : orders.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🍽️</Text>
+              <Ionicons name="fast-food-outline" size={56} color={COLORS.darkTextSecondary} />
               <Text style={styles.emptyTitle}>No Orders Yet</Text>
               <Text style={styles.emptySubtitle}>Your order history will appear here</Text>
               <TouchableOpacity style={styles.orderBtn} onPress={() => navigation.navigate('Home')}>
@@ -90,7 +90,7 @@ export default function OrderHistoryScreen({ navigation }) {
                       <Text style={styles.restName}>{order.restaurantName}</Text>
                       <Text style={styles.orderTime}>{formatTime(order.createdAt)}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
+                    <View style={[styles.statusBadge, { backgroundColor: status.color + '22' }]}>
                       <Ionicons name={status.icon} size={14} color={status.color} />
                       <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
                     </View>
@@ -131,27 +131,29 @@ export default function OrderHistoryScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.black },
+  safe: { flex: 1, backgroundColor: COLORS.darkBg },
+  header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.darkBg, borderBottomWidth: 1, borderBottomColor: COLORS.darkBorder },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.white },
   emptyContainer: { alignItems: 'center', padding: 40, gap: 12, marginTop: 40 },
-  emptyEmoji: { fontSize: 60 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: COLORS.black },
-  emptySubtitle: { fontSize: 14, color: COLORS.gray, textAlign: 'center' },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: COLORS.white },
+  emptySubtitle: { fontSize: 14, color: COLORS.darkTextSecondary, textAlign: 'center' },
   orderBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 8 },
   orderBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  orderCard: { backgroundColor: COLORS.white, margin: 12, marginBottom: 0, borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  orderCard: {
+    backgroundColor: COLORS.darkCard, margin: 12, marginBottom: 0, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: COLORS.darkBorder,
+  },
   orderHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  restName: { fontSize: 16, fontWeight: '700', color: COLORS.black },
-  orderTime: { fontSize: 12, color: COLORS.gray, marginTop: 2 },
+  restName: { fontSize: 16, fontWeight: '700', color: COLORS.white },
+  orderTime: { fontSize: 12, color: COLORS.darkTextSecondary, marginTop: 2 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   statusText: { fontSize: 12, fontWeight: '700' },
-  itemList: { fontSize: 13, color: COLORS.gray, marginBottom: 12, lineHeight: 20 },
-  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 12 },
-  totalText: { fontSize: 16, fontWeight: '800', color: COLORS.black },
+  itemList: { fontSize: 13, color: COLORS.darkTextSecondary, marginBottom: 12, lineHeight: 20 },
+  orderFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: COLORS.darkBorder, paddingTop: 12 },
+  totalText: { fontSize: 16, fontWeight: '800', color: COLORS.white },
   footerActions: { flexDirection: 'row', gap: 8 },
   reorderBtn: { borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
   reorderText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
-  detailBtn: { backgroundColor: COLORS.background, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
-  detailText: { fontSize: 13, fontWeight: '600', color: COLORS.gray },
+  detailBtn: { backgroundColor: COLORS.darkCardAlt, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
+  detailText: { fontSize: 13, fontWeight: '600', color: COLORS.darkTextSecondary },
 });
