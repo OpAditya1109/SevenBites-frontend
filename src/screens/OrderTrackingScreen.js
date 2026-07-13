@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
 import { getOrderById, connectOrderSocket, disconnectOrderSocket } from '../services/api';
 import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 import OrderTrackingMap from '../components/OrderTrackingMap';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const MAP_HEIGHT = Math.round(SCREEN_HEIGHT * 0.46);
+
+const CARD_SHADOW = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.06,
+  shadowRadius: 14,
+  elevation: 4,
+};
 
 // Matches the backend's real status machine (models/Order.js + restaurantOrderController.js)
 const ORDER_STEPS = [
@@ -53,6 +64,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const [now, setNow] = useState(Date.now());
+  const insets = useSafeAreaInsets();
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -124,6 +136,13 @@ export default function OrderTrackingScreen({ route, navigation }) {
   if (error || !order) {
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.navigate('Main')}>
+            <Ionicons name="close" size={24} color={COLORS.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Track Order</Text>
+          <View style={{ width: 24 }} />
+        </View>
         <View style={styles.centerFill}>
           <Ionicons name="alert-circle-outline" size={40} color={COLORS.gray} />
           <Text style={styles.errorText}>{error || 'Order not found.'}</Text>
@@ -141,126 +160,159 @@ export default function OrderTrackingScreen({ route, navigation }) {
   const minutesLeft = etaRange && minutesSincePlaced !== null
     ? Math.max(0, etaRange.max - minutesSincePlaced)
     : null;
+  const isOverdue = !!(etaRange && minutesSincePlaced !== null && minutesSincePlaced > etaRange.max);
 
   const restaurantName = order.restaurantId?.restaurantName || order.restaurantName || 'Restaurant';
   const restaurantAddress = order.restaurantId?.address || '';
 
+  const showEtaBlock = !isCancelled && order.status !== 'delivered';
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Main')}>
-          <Ionicons name="close" size={24} color={COLORS.black} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Track Order</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ETA / status card — built from order.status + the real ETA saved at checkout */}
-        <View style={[styles.etaCard, isCancelled && styles.etaCardCancelled]}>
-          <Ionicons
-            name={isCancelled ? 'close-circle' : ORDER_STEPS[currentStepIndex].icon}
-            size={40}
-            color="#fff"
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      {/* Hero map — big, full-bleed, sits under the status bar */}
+      <View style={{ height: MAP_HEIGHT, backgroundColor: COLORS.lightGray }}>
+        {!isCancelled ? (
+          <OrderTrackingMap
+            rounded={false}
+            height={MAP_HEIGHT}
+            restaurant={{
+              latitude: order.restaurantLatitude ?? order.restaurantId?.latitude ?? null,
+              longitude: order.restaurantLongitude ?? order.restaurantId?.longitude ?? null,
+              name: restaurantName,
+            }}
+            destination={{
+              latitude: order.deliveryLatitude ?? null,
+              longitude: order.deliveryLongitude ?? null,
+              address: order.deliveryAddress,
+            }}
+            rider={
+              currentStepIndex >= 3 && order.riderLatitude && order.riderLongitude
+                ? { latitude: order.riderLatitude, longitude: order.riderLongitude, name: order.riderName }
+                : null
+            }
           />
-          <View style={styles.etaInfo}>
-            {isCancelled ? (
-              <>
-                <Text style={styles.etaLabel}>
-                  {order.status === 'rejected' ? 'Order Rejected' : 'Order Cancelled'}
-                </Text>
-                <Text style={styles.etaStatus}>
-                  {order.rejectionReason || order.cancelReason || 'This order did not go through.'}
-                </Text>
-              </>
-            ) : order.status === 'delivered' ? (
-              <>
-                <Text style={styles.etaLabel}>Delivered!</Text>
-                {order.deliveredAt && (
-                  <Text style={styles.etaStatus}>at {formatClock(order.deliveredAt)}</Text>
-                )}
-              </>
-            ) : (
-              <>
-                <Text style={styles.etaLabel}>Arriving in</Text>
-                <Text style={styles.etaTime}>
-                  {minutesLeft !== null ? `${minutesLeft} mins` : (order.estimatedDeliveryTime || '30-45 min')}
-                </Text>
-                <Text style={styles.etaStatus}>{ORDER_STEPS[currentStepIndex].label}</Text>
-              </>
-            )}
-          </View>
-        </View>
-
-        <Text style={styles.orderId}>Order #{order._id.toString().slice(-8).toUpperCase()}</Text>
-
-        {/* Real map: restaurant → customer, dotted route (Zomato-style). Rider marker
-            appears automatically once order.riderLatitude/Longitude are set (out for delivery). */}
-        {!isCancelled && (
-          <View style={styles.routeCard}>
-            <OrderTrackingMap
-              restaurant={{
-                latitude: order.restaurantLatitude ?? order.restaurantId?.latitude ?? null,
-                longitude: order.restaurantLongitude ?? order.restaurantId?.longitude ?? null,
-                name: restaurantName,
-              }}
-              destination={{
-                latitude: order.deliveryLatitude ?? null,
-                longitude: order.deliveryLongitude ?? null,
-                address: order.deliveryAddress,
-              }}
-              rider={
-                currentStepIndex >= 3 && order.riderLatitude && order.riderLongitude
-                  ? { latitude: order.riderLatitude, longitude: order.riderLongitude, name: order.riderName }
-                  : null
-              }
-            />
-
-            <View style={styles.routeRow}>
-              <View style={styles.routeIconCol}>
-                <View style={[styles.routeDot, styles.routeDotFilled]}>
-                  <Ionicons name="restaurant" size={14} color="#fff" />
-                </View>
-                <DottedLine active={currentStepIndex >= 3} length={40} />
-              </View>
-              <View style={styles.routeTextCol}>
-                <Text style={styles.routeLabel}>{restaurantName}</Text>
-                {!!restaurantAddress && (
-                  <Text style={styles.routeAddress} numberOfLines={2}>{restaurantAddress}</Text>
-                )}
-              </View>
-            </View>
-
-            {currentStepIndex >= 3 && (
-              <View style={styles.routeRiderRow}>
-                <View style={styles.routeIconCol}>
-                  <View style={styles.riderMarker}>
-                    <Ionicons name="bicycle" size={14} color="#fff" />
-                  </View>
-                </View>
-                <Text style={styles.routeRiderText}>
-                  {order.status === 'delivered' ? 'Delivered to your address' : 'On the way to you'}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.routeRow}>
-              <View style={styles.routeIconCol}>
-                <View style={[styles.routeDot, currentStepIndex === 4 && styles.routeDotFilled]}>
-                  <Ionicons name="location" size={14} color="#fff" />
-                </View>
-              </View>
-              <View style={styles.routeTextCol}>
-                <Text style={styles.routeLabel}>Delivery Address</Text>
-                <Text style={styles.routeAddress} numberOfLines={2}>{order.deliveryAddress}</Text>
-              </View>
-            </View>
+        ) : (
+          <View style={[styles.cancelledMapFallback, { height: MAP_HEIGHT }]}>
+            <Ionicons name="close-circle-outline" size={30} color={COLORS.gray} />
           </View>
         )}
 
-        {/* Progress Steps */}
+        <TouchableOpacity
+          style={[styles.backBtn, { top: insets.top + 10 }]}
+          onPress={() => navigation.navigate('Main')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="close" size={20} color={COLORS.black} />
+        </TouchableOpacity>
+
+        <View style={[styles.orderIdChip, { top: insets.top + 10 }]}>
+          <Text style={styles.orderIdChipText}>#{order._id.toString().slice(-8).toUpperCase()}</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.sheet}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {/* Trip card — overlaps the map's bottom edge; ETA first, then the route */}
+        <View style={[styles.tripCard, CARD_SHADOW, isCancelled && styles.tripCardCancelled]}>
+          <View style={styles.tripHeaderRow}>
+            <View style={[styles.tripIconWrap, isCancelled && styles.tripIconWrapCancelled]}>
+              <Ionicons
+                name={isCancelled ? 'close-circle' : ORDER_STEPS[currentStepIndex].icon}
+                size={24}
+                color="#fff"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              {isCancelled ? (
+                <>
+                  <Text style={styles.tripTitle}>
+                    {order.status === 'rejected' ? 'Order Rejected' : 'Order Cancelled'}
+                  </Text>
+                  <Text style={styles.tripSub}>
+                    {order.rejectionReason || order.cancelReason || 'This order did not go through.'}
+                  </Text>
+                </>
+              ) : order.status === 'delivered' ? (
+                <>
+                  <Text style={styles.tripTitle}>Delivered!</Text>
+                  {order.deliveredAt && (
+                    <Text style={styles.tripSub}>Handed over at {formatClock(order.deliveredAt)}</Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.tripEyebrow}>{isOverdue ? 'Almost there' : 'Arriving in'}</Text>
+                  <Text style={styles.tripTime}>
+                    {isOverdue
+                      ? 'Any moment now'
+                      : minutesLeft !== null
+                        ? `${minutesLeft} mins`
+                        : (order.estimatedDeliveryTime || '30-45 min')}
+                  </Text>
+                  <Text style={styles.tripSub}>{ORDER_STEPS[currentStepIndex].label}</Text>
+                </>
+              )}
+            </View>
+          </View>
+
+          {/* Restaurant → customer route, dotted (Zomato-style). Rider row
+              appears automatically once order.riderLatitude/Longitude are set. */}
+          {!isCancelled && (
+            <View style={styles.routeBlock}>
+              <View style={styles.routeRow}>
+                <View style={styles.routeIconCol}>
+                  <View style={[styles.routeDot, styles.routeDotFilled]}>
+                    <Ionicons name="restaurant" size={13} color="#fff" />
+                  </View>
+                  <DottedLine active={currentStepIndex >= 3} length={36} />
+                </View>
+                <View style={styles.routeTextCol}>
+                  <Text style={styles.routeLabel}>{restaurantName}</Text>
+                  {!!restaurantAddress && (
+                    <Text style={styles.routeAddress} numberOfLines={2}>{restaurantAddress}</Text>
+                  )}
+                </View>
+              </View>
+
+              {currentStepIndex >= 3 && (
+                <View style={styles.routeRiderRow}>
+                  <View style={styles.routeIconCol}>
+                    <View style={styles.riderMarker}>
+                      <Ionicons name="bicycle" size={13} color="#fff" />
+                    </View>
+                  </View>
+                  <Text style={styles.routeRiderText}>
+                    {order.status === 'delivered' ? 'Delivered to your address' : 'On the way to you'}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.routeRow}>
+                <View style={styles.routeIconCol}>
+                  <View style={[styles.routeDot, currentStepIndex === 4 && styles.routeDotFilled]}>
+                    <Ionicons name="location" size={13} color="#fff" />
+                  </View>
+                </View>
+                <View style={styles.routeTextCol}>
+                  <Text style={styles.routeLabel}>Delivery Address</Text>
+                  <Text style={styles.routeAddress} numberOfLines={2}>{order.deliveryAddress}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Progress steps */}
         {!isCancelled && (
-          <View style={styles.stepsContainer}>
+          <View style={[styles.stepsContainer, CARD_SHADOW]}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="git-commit-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.sectionTitle}>Order Status</Text>
+            </View>
+
             <View style={styles.progressTrack}>
               <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
             </View>
@@ -290,7 +342,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
         )}
 
         {/* Real invoice — pulled straight from the order's own saved amounts, no placeholders */}
-        <View style={styles.invoiceCard}>
+        <View style={[styles.invoiceCard, CARD_SHADOW]}>
           <View style={styles.invoiceHeader}>
             <Ionicons name="receipt-outline" size={18} color={COLORS.primary} />
             <Text style={styles.invoiceTitle}>Invoice</Text>
@@ -322,7 +374,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
             />
           )}
 
-          <View style={[styles.invoiceItemRow, styles.invoiceTotalRow]}>
+          <View style={styles.invoiceTotalRow}>
             <Text style={styles.invoiceTotalLabel}>Total Paid</Text>
             <Text style={styles.invoiceTotalValue}>₹{order.totalAmount.toFixed(0)}</Text>
           </View>
@@ -344,8 +396,6 @@ export default function OrderTrackingScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         )}
-
-        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -392,32 +442,60 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 14, color: COLORS.gray, textAlign: 'center' },
   retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
   retryText: { color: '#fff', fontWeight: '700' },
+
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.black },
-  etaCard: { backgroundColor: COLORS.primary, margin: 16, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  etaCardCancelled: { backgroundColor: COLORS.gray },
-  etaInfo: { flex: 1 },
-  etaLabel: { fontSize: 14, color: 'rgba(255,255,255,0.85)' },
-  etaTime: { fontSize: 32, fontWeight: '800', color: '#fff' },
-  etaStatus: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
-  orderId: { fontSize: 13, color: COLORS.gray, textAlign: 'center', marginBottom: 16 },
 
-  routeCard: { backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 16, padding: 16, marginBottom: 12 },
+  cancelledMapFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.lightGray },
+
+  backBtn: {
+    position: 'absolute', left: 16, width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 4,
+  },
+  orderIdChip: {
+    position: 'absolute', right: 16, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 19,
+    backgroundColor: 'rgba(28,28,30,0.72)',
+  },
+  orderIdChipText: { color: '#fff', fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+
+  sheet: { flex: 1 },
+
+  tripCard: {
+    backgroundColor: COLORS.white, marginHorizontal: 16, marginTop: -28, borderRadius: 20,
+    paddingTop: 20, paddingHorizontal: 18, paddingBottom: 6,
+  },
+  tripCardCancelled: { paddingBottom: 20 },
+  tripHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 4 },
+  tripIconWrap: {
+    width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  tripIconWrapCancelled: { backgroundColor: COLORS.gray },
+  tripEyebrow: { fontSize: 12, fontWeight: '700', color: COLORS.gray, textTransform: 'uppercase', letterSpacing: 0.4 },
+  tripTime: { fontSize: 26, fontWeight: '800', color: COLORS.black, marginTop: 1 },
+  tripTitle: { fontSize: 18, fontWeight: '800', color: COLORS.black },
+  tripSub: { fontSize: 13, color: COLORS.gray, marginTop: 2, fontWeight: '600' },
+
+  routeBlock: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: COLORS.border },
   routeRow: { flexDirection: 'row', gap: 12 },
   routeIconCol: { alignItems: 'center', width: 24 },
   routeDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   routeDotFilled: { backgroundColor: COLORS.primary },
-  routeTextCol: { flex: 1, paddingBottom: 4 },
+  routeTextCol: { flex: 1, paddingBottom: 12 },
   routeLabel: { fontSize: 14, fontWeight: '700', color: COLORS.black },
   routeAddress: { fontSize: 12, color: COLORS.gray, marginTop: 2, lineHeight: 17 },
-  routeRiderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 },
+  routeRiderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 2, paddingBottom: 8 },
   riderMarker: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.green, alignItems: 'center', justifyContent: 'center' },
-  routeRiderText: { fontSize: 12, fontWeight: '600', color: COLORS.green },
+  routeRiderText: { fontSize: 12, fontWeight: '700', color: COLORS.green },
 
-  stepsContainer: { backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 16, padding: 20, gap: 16, marginBottom: 12 },
-  progressTrack: { position: 'absolute', left: 36, top: 36, width: 3, height: '80%', backgroundColor: COLORS.border },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.black },
+
+  stepsContainer: { backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 20, padding: 20, marginTop: 14 },
+  progressTrack: { position: 'absolute', left: 40, top: 62, width: 3, height: '72%', backgroundColor: COLORS.border },
   progressFill: { backgroundColor: COLORS.primary, borderRadius: 2 },
-  step: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  step: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
   stepCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.border, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
   doneCircle: { backgroundColor: COLORS.green },
   activeCircle: { backgroundColor: COLORS.primary },
@@ -429,26 +507,29 @@ const styles = StyleSheet.create({
   stepDesc: { fontSize: 12, color: COLORS.primary, marginTop: 2 },
   stepTime: { fontSize: 11, color: COLORS.gray, marginTop: 2 },
 
-  invoiceCard: { backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 16, padding: 16 },
-  invoiceHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  invoiceCard: { backgroundColor: COLORS.white, marginHorizontal: 16, borderRadius: 20, padding: 18, marginTop: 14 },
+  invoiceHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   invoiceTitle: { fontSize: 16, fontWeight: '700', color: COLORS.black },
   invoiceItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 },
   invoiceItemQty: { fontSize: 13, fontWeight: '700', color: COLORS.gray, width: 24 },
   invoiceItemName: { flex: 1, fontSize: 14, color: COLORS.black },
   invoiceItemPrice: { fontSize: 14, fontWeight: '600', color: COLORS.black },
-  invoiceDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 8 },
+  invoiceDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 10 },
   invoiceBillRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
   invoiceBillLabel: { fontSize: 13, color: COLORS.gray },
   invoiceBillValue: { fontSize: 13, fontWeight: '600', color: COLORS.black },
-  invoiceTotalRow: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 6, paddingTop: 12 },
+  invoiceTotalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: COLORS.background,
+  },
   invoiceTotalLabel: { fontSize: 15, fontWeight: '700', color: COLORS.black },
-  invoiceTotalValue: { fontSize: 15, fontWeight: '800', color: COLORS.black },
-  invoiceMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  invoiceTotalValue: { fontSize: 17, fontWeight: '800', color: COLORS.primary },
+  invoiceMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
   invoiceMetaText: { fontSize: 12, color: COLORS.gray, fontWeight: '600' },
   paidText: { color: COLORS.green },
   pendingText: { color: COLORS.warning },
 
-  footer: { padding: 16 },
+  footer: { padding: 16, paddingTop: 20 },
   rateBtn: { backgroundColor: COLORS.primary, borderRadius: 14, padding: 16, alignItems: 'center' },
   rateBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

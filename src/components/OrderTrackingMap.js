@@ -13,6 +13,8 @@ export default function OrderTrackingMap({
   destination,  // { latitude, longitude, address }
   rider,        // { latitude, longitude, name } | null — appears once out_for_delivery
   height = 220,
+  rounded = true, // set false for a full-bleed hero usage (no radius/margin)
+  style,
 }) {
   const cameraRef = useRef(null);
 
@@ -40,7 +42,7 @@ export default function OrderTrackingMap({
 
   if (!hasRoute) {
     return (
-      <View style={[styles.fallback, { height }]}>
+      <View style={[styles.fallback, !rounded && styles.flat, { height }, style]}>
         <Ionicons name="map-outline" size={22} color={COLORS.gray} />
         <Text style={styles.fallbackText}>Map preview isn't available for this order.</Text>
       </View>
@@ -71,9 +73,13 @@ export default function OrderTrackingMap({
   };
 
   return (
-    <View style={[styles.wrap, { height }]}>
+    <View style={[styles.wrap, !rounded && styles.flat, { height }, style]}>
       <MapView style={StyleSheet.absoluteFill} scaleBarEnabled={false} logoEnabled={true} attributionEnabled={true}>
-        <Camera ref={cameraRef} centerCoordinate={centerCoord} zoomLevel={13} animationMode="none" />
+        <Camera
+          ref={cameraRef}
+          defaultSettings={{ centerCoordinate: centerCoord, zoomLevel: 13 }}
+          animationMode="none"
+        />
 
         {travelledLine && (
           <ShapeSource id="travelledSource" shape={travelledLine}>
@@ -118,6 +124,7 @@ const styles = StyleSheet.create({
     borderRadius: 16, marginBottom: 12, backgroundColor: COLORS.white,
     alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20,
   },
+  flat: { borderRadius: 0, marginBottom: 0 },
   fallbackText: { fontSize: 12, color: COLORS.gray, textAlign: 'center' },
   pin: {
     width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
