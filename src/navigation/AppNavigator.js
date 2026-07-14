@@ -16,7 +16,6 @@ import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import RestaurantScreen from '../screens/RestaurantScreen';
 import CartScreen from '../screens/CartScreen';
-import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -106,7 +105,6 @@ export default function AppNavigator() {
             <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
             <Stack.Screen name="Cart" component={CartScreen} />
-            <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
             <Stack.Screen name="Address" component={AddressScreen} />
           </>

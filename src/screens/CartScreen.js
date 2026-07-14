@@ -7,16 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RazorpayCheckout from 'react-native-razorpay';
-import {
-  COLORS, PLATFORM_FEE, GST_RATE,
-  FREE_DELIVERY_THRESHOLD, DEFAULT_DELIVERY_FEE, ACTIVE_ADDRESS_KEY,
-  TESTING_ZERO_FEES,
-} from '../utils/constants';
+import { COLORS, ACTIVE_ADDRESS_KEY } from '../utils/constants';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
   getRestaurantById, getDeliveryEstimate, getActiveCoupons, applyCoupon,
   createRazorpayOrder, verifyPaymentAndPlaceOrder, getUserAddresses,
+  getActivePricingConfig, calculateCharges,
 } from '../services/api';
 import { AppLoader, LOADING_MESSAGES, ButtonLoader } from '../components/AppLoader';
 import StatusPopup from '../components/StatusPopup';
@@ -41,6 +38,15 @@ export default function CartScreen({ navigation }) {
   const [eta, setEta] = useState(null);
   const [etaLoading, setEtaLoading] = useState(false);
 
+  // Admin-configurable thresholds, fetched once — used for the "add ₹X more"
+  // progress banner. The actual fee breakdown comes from `charges` below.
+  const [pricingConfig, setPricingConfig] = useState(null);
+
+  // Live fee breakdown from the backend, recalculated whenever order value or
+  // distance changes. This — not any local constant — is what gets charged.
+  const [charges, setCharges] = useState(null);
+  const [chargesLoading, setChargesLoading] = useState(false);
+
   const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [couponModalVisible, setCouponModalVisible] = useState(false);
   const [coupons, setCoupons] = useState([]);
@@ -58,6 +64,12 @@ export default function CartScreen({ navigation }) {
       .then((res) => setRestaurantMeta(res.data.data || res.data))
       .catch(() => setRestaurantMeta(null));
   }, [restaurantId]);
+
+  useEffect(() => {
+    getActivePricingConfig()
+      .then((res) => setPricingConfig(res.data.data || res.data))
+      .catch(() => setPricingConfig(null));
+  }, []);
 
   const loadAddress = useCallback(async () => {
     try {
@@ -99,6 +111,21 @@ export default function CartScreen({ navigation }) {
       .finally(() => setEtaLoading(false));
   }, [restaurantId, activeAddress?.latitude, activeAddress?.longitude]);
 
+  // Recompute the fee breakdown from the backend whenever order value or
+  // distance changes. This is the ONLY place fees get calculated — nothing
+  // here is hardcoded, it all comes from PricingConfig via this call.
+  useEffect(() => {
+    if (!totalPrice || totalPrice <= 0) {
+      setCharges(null);
+      return;
+    }
+    setChargesLoading(true);
+    calculateCharges(totalPrice, eta?.distanceKm ?? null)
+      .then((res) => setCharges(res.data.data || res.data))
+      .catch(() => setCharges(null))
+      .finally(() => setChargesLoading(false));
+  }, [totalPrice, eta?.distanceKm]);
+
   // Fetch the single best available coupon up-front so it can be surfaced
   // as an inline nudge, instead of making the person open a modal to discover it.
   useEffect(() => {
@@ -129,17 +156,18 @@ export default function CartScreen({ navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPrice]);
 
-  const baseDeliveryFee = TESTING_ZERO_FEES
-    ? 0
-    : (restaurantMeta?.deliveryFee > 0 ? restaurantMeta.deliveryFee : DEFAULT_DELIVERY_FEE);
-  const isFreeDelivery = TESTING_ZERO_FEES || totalPrice >= FREE_DELIVERY_THRESHOLD;
-  const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
-  const platformFee = TESTING_ZERO_FEES ? 0 : PLATFORM_FEE;
-  const gst = Math.round(totalPrice * GST_RATE);
+  // Derived bill values — all sourced from `charges` (backend), never local constants.
+  const deliveryFee = charges?.deliveryFee ?? 0;
+  const platformFee = charges?.platformFee ?? 0;
+  const gst = charges?.gst ?? 0;
+  const gstRatePercent = charges?.gstRatePercent ?? null;
+  const isFreeDelivery = charges?.isFreeDelivery ?? false;
   const discountAmount = selectedCoupon?.discountAmount || 0;
-  const toPay = Math.max(0, totalPrice + deliveryFee + platformFee + gst - discountAmount);
-  const totalSavings = discountAmount + (isFreeDelivery ? baseDeliveryFee : 0);
-  const freeDeliveryProgress = Math.min(1, totalPrice / FREE_DELIVERY_THRESHOLD);
+  const toPay = charges ? Math.max(0, charges.total - discountAmount) : 0;
+  const totalSavings = discountAmount; // delivery-fee "savings" isn't a fixed baseline anymore under distance-based pricing
+  const lowOrderThreshold = pricingConfig?.lowOrderValueThreshold ?? 99;
+  const isAboveLowOrderThreshold = totalPrice >= lowOrderThreshold;
+  const freeDeliveryProgress = Math.min(1, totalPrice / lowOrderThreshold);
 
   const openCouponModal = () => {
     setCouponModalVisible(true);
@@ -194,6 +222,10 @@ export default function CartScreen({ navigation }) {
       Alert.alert('No Address', 'Please select a delivery address before placing your order.');
       return;
     }
+    if (!charges) {
+      Alert.alert('Please wait', 'Still calculating delivery charges — try again in a moment.');
+      return;
+    }
 
     const orderData = {
       restaurantId,
@@ -208,6 +240,8 @@ export default function CartScreen({ navigation }) {
       deliveryFee,
       platformFee,
       gst,
+      gstRatePercent,
+      distanceKm: eta?.distanceKm ?? null,
       couponCode: selectedCoupon?.code || '',
       discountAmount,
       deliveryAddress: formatAddressString(activeAddress),
@@ -301,12 +335,12 @@ export default function CartScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Free-delivery progress — visual nudge to add one more item */}
-        {!isFreeDelivery && (
+        {!isAboveLowOrderThreshold && (
           <View style={styles.progressBanner}>
             <View style={styles.progressBannerTop}>
               <Ionicons name="bicycle" size={15} color={COLORS.secondary} />
               <Text style={styles.progressBannerText}>
-                Add ₹{Math.max(0, FREE_DELIVERY_THRESHOLD - Math.round(totalPrice))} more for FREE delivery
+                Add ₹{Math.max(0, Math.round(lowOrderThreshold - totalPrice))} more for FREE delivery
               </Text>
             </View>
             <View style={styles.progressTrack}>
@@ -457,20 +491,31 @@ export default function CartScreen({ navigation }) {
             <Text style={styles.billLabel}>Item Total</Text>
             <Text style={styles.billValue}>₹{totalPrice.toFixed(0)}</Text>
           </View>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Delivery Partner Fee</Text>
-            <Text style={[styles.billValue, isFreeDelivery && { color: COLORS.green }]}>
-              {isFreeDelivery ? 'FREE' : `₹${deliveryFee}`}
-            </Text>
-          </View>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Platform Fee</Text>
-            <Text style={styles.billValue}>₹{platformFee}</Text>
-          </View>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>GST</Text>
-            <Text style={styles.billValue}>₹{gst}</Text>
-          </View>
+
+          {chargesLoading && !charges ? (
+            <Text style={styles.calculatingText}>Calculating delivery charges...</Text>
+          ) : (
+            <>
+           <View style={styles.billRow}>
+  <View style={{ flex: 1 }}>
+    <Text style={styles.billLabel}>Delivery Partner Fee</Text>
+    <Text style={styles.billHint}>{deliveryFeeHint}</Text>
+  </View>
+  <Text style={[styles.billValue, isFreeDelivery && { color: COLORS.green }]}>
+    {isFreeDelivery ? 'FREE' : `₹${deliveryFee}`}
+  </Text>
+</View>
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Platform Fee</Text>
+                <Text style={styles.billValue}>₹{platformFee}</Text>
+              </View>
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>GST{gstRatePercent != null ? ` (${gstRatePercent}%)` : ''}</Text>
+                <Text style={styles.billValue}>₹{gst}</Text>
+              </View>
+            </>
+          )}
+
           {discountAmount > 0 && (
             <View style={styles.billRow}>
               <Text style={[styles.billLabel, { color: COLORS.green }]}>Coupon Discount ({selectedCoupon.code})</Text>
@@ -526,9 +571,9 @@ export default function CartScreen({ navigation }) {
           </View>
         )}
         <TouchableOpacity
-          style={[styles.checkoutBtn, (!activeAddress || paying) && { opacity: 0.6 }]}
+          style={[styles.checkoutBtn, (!activeAddress || paying || !charges) && { opacity: 0.6 }]}
           onPress={handlePlaceOrder}
-          disabled={!activeAddress || paying}
+          disabled={!activeAddress || paying || !charges}
           activeOpacity={0.9}
         >
           {paying ? (
@@ -697,6 +742,7 @@ const styles = StyleSheet.create({
   billRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
   billLabel: { fontSize: 14, color: COLORS.darkTextSecondary },
   billValue: { fontSize: 14, fontWeight: '600', color: COLORS.white },
+  calculatingText: { fontSize: 13, color: COLORS.darkTextSecondary, fontStyle: 'italic', paddingVertical: 8 },
   totalRow: { borderTopWidth: 1, borderTopColor: COLORS.darkBorder, marginTop: 8, paddingTop: 12 },
   totalLabel: { fontSize: 16, fontWeight: '700', color: COLORS.white },
   totalValue: { fontSize: 16, fontWeight: '800', color: COLORS.white },
@@ -754,4 +800,5 @@ policyTextBold: {
   fontWeight: '700',
   color: COLORS.secondary,
 },
+billHint: { fontSize: 11, color: COLORS.darkTextSecondary, marginTop: 2 },
 });

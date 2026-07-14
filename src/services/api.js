@@ -86,6 +86,7 @@ function adaptMenuItem(item) {
 // ── Auth ──────────────────────────────────────────────
 export const loginUser = (data) => api.post('/auth/login', data);
 export const registerUser = (data) => api.post('/auth/register', data);
+export const googleLoginUser = (idToken) => api.post('/auth/google', { idToken }); // NEW
 export const getProfile = () => api.get('/auth/profile');
 export const updateProfile = (data) => api.put('/auth/profile', data);
 
@@ -177,5 +178,13 @@ export const applyCoupon = (code, restaurantId, orderValue) =>
 // vs the customer's exact address pin (both lat/lng).
 export const getDeliveryEstimate = (restaurantId, lat, lng) =>
   api.get(`/public/restaurants/${restaurantId}/delivery-estimate`, { params: { lat, lng } });
+
+  
+// ── Pricing (admin-configurable delivery fee / platform fee / GST) ────
+// Single source of truth — Cart/Checkout call this instead of computing fees
+// locally. Same calc runs again server-side at order placement.
+export const getActivePricingConfig = () => api.get('/public/pricing/active');
+export const calculateCharges = (orderValue, distanceKm) =>
+  api.post('/public/pricing/calculate', { orderValue, distanceKm });
 
 export default api;

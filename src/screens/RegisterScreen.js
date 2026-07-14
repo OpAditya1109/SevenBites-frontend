@@ -7,12 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { ButtonLoader } from '../components/AppLoader';
+import { signInWithGoogle, isErrorWithCode, statusCodes } from '../services/googleAuth';
 
 export default function RegisterScreen({ navigation }) {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const update = (key, val) => setForm({ ...form, [key]: val });
 
@@ -28,6 +30,22 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Registration Failed', err?.message || 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleRegister = async () => {
+    setGoogleLoading(true);
+    try {
+      const idToken = await signInWithGoogle();
+      await loginWithGoogle(idToken); // same endpoint — creates the account if it doesn't exist yet
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user closed the picker — no need to show an error
+      } else {
+        Alert.alert('Google Sign-Up Failed', err?.message || 'Something went wrong');
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -83,6 +101,17 @@ export default function RegisterScreen({ navigation }) {
           <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} disabled={loading} activeOpacity={0.9}>
             {loading ? <ButtonLoader label="Creating account..." /> : <Text style={styles.registerText}>Create Account</Text>}
           </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <Text style={styles.orText}>OR</Text>
+            <View style={styles.line} />
+          </View>
+
+          <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleRegister} disabled={googleLoading} activeOpacity={0.9}>
+            {googleLoading ? <ButtonLoader label="Connecting to Google..." /> : <Text style={styles.socialText}>🔵  Continue with Google</Text>}
+          </TouchableOpacity>
+
           <View style={styles.loginRow}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -114,6 +143,14 @@ const styles = StyleSheet.create({
     shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   registerText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  line: { flex: 1, height: 1, backgroundColor: COLORS.darkBorder },
+  orText: { fontSize: 12, color: COLORS.darkTextSecondary },
+  socialBtn: {
+    borderWidth: 1.5, borderColor: COLORS.darkBorder, borderRadius: 12, height: 54,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.darkCard,
+  },
+  socialText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
   loginRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
   loginText: { fontSize: 14, color: COLORS.darkTextSecondary },
   loginLink: { fontSize: 14, fontWeight: '700', color: COLORS.primary },

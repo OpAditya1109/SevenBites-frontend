@@ -7,13 +7,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { ButtonLoader } from '../components/AppLoader';
+import { signInWithGoogle, isErrorWithCode, statusCodes } from '../services/googleAuth';
 
 export default function LoginScreen({ navigation }) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -27,6 +29,22 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('Login Failed', err?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      const idToken = await signInWithGoogle();
+      await loginWithGoogle(idToken);
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user closed the picker — no need to show an error
+      } else {
+        Alert.alert('Google Sign-In Failed', err?.message || 'Something went wrong');
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -84,8 +102,8 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.line} />
           </View>
 
-          <TouchableOpacity style={styles.socialBtn}>
-            <Text style={styles.socialText}>🔵  Continue with Google</Text>
+          <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin} disabled={googleLoading} activeOpacity={0.9}>
+            {googleLoading ? <ButtonLoader label="Connecting to Google..." /> : <Text style={styles.socialText}>🔵  Continue with Google</Text>}
           </TouchableOpacity>
 
           <View style={styles.registerRow}>

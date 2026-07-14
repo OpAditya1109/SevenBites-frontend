@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginUser, registerUser, getProfile } from '../services/api';
+import { loginUser, registerUser, googleLoginUser, getProfile } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -62,6 +62,14 @@ export function AuthProvider({ children }) {
     return res.data;
   };
 
+  // NEW — logs in if the Google account already has one, registers automatically if not.
+  const loginWithGoogle = async (idToken) => {
+    const res = await googleLoginUser(idToken);
+    await AsyncStorage.setItem('token', res.data.token);
+    dispatch({ type: 'LOGIN_SUCCESS', payload: res.data });
+    return res.data;
+  };
+
   const logout = async () => {
     await AsyncStorage.removeItem('token');
     dispatch({ type: 'LOGOUT' });
@@ -70,7 +78,7 @@ export function AuthProvider({ children }) {
   const updateUser = (user) => dispatch({ type: 'UPDATE_USER', payload: user });
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ ...state, login, register, loginWithGoogle, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

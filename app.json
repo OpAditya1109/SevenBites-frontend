@@ -62,8 +62,10 @@
       [
         "@rnmapbox/maps",
         {}
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
+    
     "extra": {
       "apiBaseUrl": "https://sevenbites-restaurant-backend.onrender.com/api",
       "eas": {
