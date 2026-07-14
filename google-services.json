@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1072038190035",
+    "project_id": "sevenbites-14195",
+    "storage_bucket": "sevenbites-14195.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072038190035:android:3cbd680986d5316b6a6d26",
+        "android_client_info": {
+          "package_name": "com.sevenbites.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6Y3DCscewd58V1_dXn34cX-xj_K0t3Kw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

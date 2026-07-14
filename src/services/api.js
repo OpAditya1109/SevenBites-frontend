@@ -89,7 +89,8 @@ export const registerUser = (data) => api.post('/auth/register', data);
 export const googleLoginUser = (idToken) => api.post('/auth/google', { idToken }); // NEW
 export const getProfile = () => api.get('/auth/profile');
 export const updateProfile = (data) => api.put('/auth/profile', data);
-
+// ── Push notifications ────────────────────────────────
+export const registerPushToken = (data) => api.post('/notifications/register-token', data);
 // ── Restaurants (now hitting the real public API) ──────
 export const getRestaurants = async (params) => {
   const res = await api.get('/public/restaurants', { params });

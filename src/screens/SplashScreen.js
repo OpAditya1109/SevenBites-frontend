@@ -1,129 +1,115 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, Dimensions, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { View, Text } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { COLORS } from '../utils/constants';
+import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
+// Screens
+import SplashScreen from '../screens/SplashScreen';
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import HomeScreen from '../screens/HomeScreen';
+import RestaurantScreen from '../screens/RestaurantScreen';
+import CartScreen from '../screens/CartScreen';
+import OrderTrackingScreen from '../screens/OrderTrackingScreen';
+import OrderHistoryScreen from '../screens/OrderHistoryScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import SearchScreen from '../screens/SearchScreen';
+import AddressScreen from '../screens/AddressScreen';
 
-export default function SplashScreen({ navigation }) {
-  const logoScale   = useRef(new Animated.Value(0.6)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const tagOpacity  = useRef(new Animated.Value(0)).current;
-  const dotOpacity  = useRef(new Animated.Value(0)).current;
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
-  useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.spring(logoScale, {
-          toValue: 1,
-          friction: 5,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(tagOpacity, {
-        toValue: 1,
-        duration: 350,
-        delay: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(dotOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(900),
-      Animated.parallel([
-        Animated.timing(logoOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(tagOpacity,  { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(dotOpacity,  { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]),
-    ]).start(() => {
-      navigation.replace('Login');
-    });
-  }, []);
+function HomeTabs() {
+  const { totalItems } = useCart();
 
   return (
-    <LinearGradient
-      colors={['#E23744', '#c0202e']}
-      style={styles.container}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.gray,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 12,
+          left: 60,
+          right: 60,
+          height: 44,
+          borderRadius: 20,
+          backgroundColor: 'rgba(255,255,255,0.82)',
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.6)',
+          paddingBottom: 0,
+          paddingTop: 4,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.15,
+          shadowRadius: 20,
+          elevation: 12,
+        },
+        tabBarItemStyle: { paddingVertical: 0 },
+        tabBarLabelStyle: { fontSize: 10, marginTop: -2, marginBottom: 3 },
+        tabBarIconStyle: { marginTop: 0 },
+        tabBarIcon: ({ color, size, focused }) => {
+          const icons = {
+            Home: focused ? 'home' : 'home-outline',
+            Orders: focused ? 'receipt' : 'receipt-outline',
+            Profile: focused ? 'person' : 'person-outline',
+          };
+          return <Ionicons name={icons[route.name]} size={size - 2} color={color} />;
+        },
+      })}
     >
-      <View style={styles.glow} />
-
-      <Animated.View
-        style={[
-          styles.logoBlock,
-          { opacity: logoOpacity, transform: [{ scale: logoScale }] },
-        ]}
-      >
-        {/* Your logo image instead of emoji */}
-        <Image
-          source={require('../../assets/images/icon.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
-
-        <Text style={styles.appName}>Seven Bites</Text>
-
-        <Animated.Text style={[styles.tagline, { opacity: tagOpacity }]}>
-          Good food, fast.
-        </Animated.Text>
-      </Animated.View>
-
-      <Animated.View style={[styles.bottomDot, { opacity: dotOpacity }]} />
-    </LinearGradient>
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Orders"
+        component={OrderHistoryScreen}
+        options={{
+          tabBarBadge: totalItems > 0 ? totalItems : undefined,
+          tabBarBadgeStyle: { backgroundColor: COLORS.primary },
+        }}
+      />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
   );
 }
+export default function AppNavigator() {
+  const { isLoading, isAuthenticated } = useAuth();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glow: {
-    position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  logoBlock: {
-    alignItems: 'center',
-  },
-  logoImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 42,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-  },
-  tagline: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.75)',
-    fontWeight: '500',
-    marginTop: 10,
-    letterSpacing: 0.5,
-  },
-  bottomDot: {
-    position: 'absolute',
-    bottom: 48,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
-});
+  if (isLoading) {
+    return (
+     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.darkBg }}>
+      <AppLoader messages={LOADING_MESSAGES.default} style={{ backgroundColor: 'transparent' }} />
+    </View> 
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!isAuthenticated ? (
+          <>
+            <Stack.Screen name="Onboarding" component={SplashScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Main" component={HomeTabs} />
+            <Stack.Screen name="Search" component={SearchScreen} />
+            <Stack.Screen name="Restaurant" component={RestaurantScreen} />
+            <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+            <Stack.Screen name="Address" component={AddressScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

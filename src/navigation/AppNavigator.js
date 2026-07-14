@@ -3,7 +3,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -79,15 +78,12 @@ function HomeTabs() {
     </Tab.Navigator>
   );
 }
+
 export default function AppNavigator() {
   const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
-    return (
-     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.darkBg }}>
-      <AppLoader messages={LOADING_MESSAGES.default} style={{ backgroundColor: 'transparent' }} />
-    </View> 
-    );
+    return <SplashScreen />;
   }
 
   return (

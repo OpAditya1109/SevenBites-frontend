@@ -22,35 +22,28 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "POST_NOTIFICATIONS"
       ],
-      "package": "com.sevenbites.app"
+      "package": "com.sevenbites.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/icon.png",
-          "imageWidth": 260,
-          "resizeMode": "contain",
-          "backgroundColor": "#E23744",
-          "ios": {
-            "image": "./assets/images/icon.png",
-            "imageWidth": 260,
-            "resizeMode": "contain",
-            "backgroundColor": "#E23744"
-          },
-          "android": {
-            "image": "./assets/images/icon.png",
-            "imageWidth": 260,
-            "resizeMode": "contain",
-            "backgroundColor": "#E23744"
-          }
-        }
-      ],
+     [
+  "expo-splash-screen",
+  {
+    "backgroundColor": "#E23744",
+    "ios": {
+      "backgroundColor": "#E23744"
+    },
+    "android": {
+      "backgroundColor": "#E23744"
+    }
+  }
+],
       [
         "expo-location",
         {
@@ -63,9 +56,16 @@
         "@rnmapbox/maps",
         {}
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#E23744"
+        }
+      ]
     ],
-    
+
     "extra": {
       "apiBaseUrl": "https://sevenbites-restaurant-backend.onrender.com/api",
       "eas": {

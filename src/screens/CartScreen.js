@@ -15,6 +15,7 @@ import {
   createRazorpayOrder, verifyPaymentAndPlaceOrder, getUserAddresses,
   getActivePricingConfig, calculateCharges,
 } from '../services/api';
+import { useOrderTracking } from '../context/OrderTrackingProvider';
 import { AppLoader, LOADING_MESSAGES, ButtonLoader } from '../components/AppLoader';
 import StatusPopup from '../components/StatusPopup';
 
@@ -32,7 +33,7 @@ const formatAddressString = (addr) => {
 export default function CartScreen({ navigation }) {
   const { items, totalItems, totalPrice, restaurantName, addItem, removeItem, clearCart, restaurantId } = useCart();
   const { user } = useAuth();
-
+const { setActiveOrderId } = useOrderTracking();
   const [restaurantMeta, setRestaurantMeta] = useState(null);
   const [activeAddress, setActiveAddress] = useState(null);
   const [eta, setEta] = useState(null);
@@ -162,6 +163,10 @@ export default function CartScreen({ navigation }) {
   const gst = charges?.gst ?? 0;
   const gstRatePercent = charges?.gstRatePercent ?? null;
   const isFreeDelivery = charges?.isFreeDelivery ?? false;
+  const deliveryFeeHint = eta?.distanceKm != null       // NEW
+  ? `Based on ${eta.distanceKm} km distance`
+  : 'Calculated at checkout';
+
   const discountAmount = selectedCoupon?.discountAmount || 0;
   const toPay = charges ? Math.max(0, charges.total - discountAmount) : 0;
   const totalSavings = discountAmount; // delivery-fee "savings" isn't a fixed baseline anymore under distance-based pricing
@@ -282,6 +287,8 @@ export default function CartScreen({ navigation }) {
       const order = verifyRes.data.data || verifyRes.data;
 
       clearCart();
+            await setActiveOrderId(order._id);
+
       navigation.replace('OrderTracking', { orderId: order._id });
     } catch (err) {
       if (err?.code === 0 || err?.description || err?.error) {
