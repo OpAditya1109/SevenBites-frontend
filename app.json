@@ -32,14 +32,17 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-     [
+  [
   "expo-splash-screen",
   {
+    "image": "./assets/images/splash-blank.png",
     "backgroundColor": "#E23744",
     "ios": {
+      "image": "./assets/images/splash-blank.png",
       "backgroundColor": "#E23744"
     },
     "android": {
+      "image": "./assets/images/splash-blank.png",
       "backgroundColor": "#E23744"
     }
   }
