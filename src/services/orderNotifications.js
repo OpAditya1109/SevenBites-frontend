@@ -82,6 +82,26 @@ export async function showOrderTrackingNotification(order) {
   }
 }
 
+// Quick manual test — call this from a button anywhere (e.g. a debug row on
+// the Profile screen) to confirm Notifee can actually display a notification
+// on this device, independent of the real order/socket/push pipeline.
+export async function sendTestNotification() {
+  await ensureNotificationChannel();
+  const granted = await requestNotificationPermission();
+  console.log('Notification permission result:', granted);
+
+  await notifee.displayNotification({
+    id: 'test-notification',
+    title: 'SevenBites — Test Notification',
+    body: 'If you can see this, Notifee is working correctly on this device.',
+    android: {
+      channelId: CHANNEL_ID,
+      color: BRAND_COLOR,
+      pressAction: { id: 'default' },
+    },
+  });
+}
+
 export async function clearOrderTrackingNotification() {
   await notifee.cancelNotification(NOTIFICATION_ID).catch(() => {});
 }

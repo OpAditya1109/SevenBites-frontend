@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { getUserOrders, getMyReviews } from '../services/api';
+import { sendTestNotification } from '../services/orderNotifications';
 
 const MENU_ITEMS = [
   { icon: 'location-outline', label: 'My Addresses', screen: 'Address' },
@@ -127,6 +128,14 @@ export default function ProfileScreen({ navigation }) {
           ))}
         </View>
 
+        <TouchableOpacity
+  style={styles.testNotifBtn}
+  onPress={sendTestNotification}
+>
+  <Ionicons name="notifications-outline" size={20} color={COLORS.primary} />
+  <Text style={styles.testNotifText}>Send Test Notification</Text>
+</TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={COLORS.primary} />
           <Text style={styles.logoutText}>Logout</Text>
@@ -172,4 +181,9 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
   version: { textAlign: 'center', fontSize: 12, color: COLORS.darkTextSecondary, marginBottom: 8 },
+  testNotifBtn: {
+  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginHorizontal: 16, marginTop: 16,
+  borderWidth: 1.5, borderColor: COLORS.darkBorder, borderRadius: 14, padding: 14,
+},
+testNotifText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
 });
