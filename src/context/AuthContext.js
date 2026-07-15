@@ -11,6 +11,18 @@ const initialState = {
   isAuthenticated: false,
 };
 
+// Ensures the custom SplashScreen (logo + red bg) is visible for at least
+// this long, even when the token check resolves almost instantly (e.g. no
+// saved token). Without this, isLoading can flip to false in a few ms and
+// the splash appears to be skipped entirely.
+const MIN_SPLASH_MS = 3000;
+
+function waitRemaining(startedAt, minDuration = MIN_SPLASH_MS) {
+  const elapsed = Date.now() - startedAt;
+  const remaining = minDuration - elapsed;
+  return remaining > 0 ? new Promise((resolve) => setTimeout(resolve, remaining)) : Promise.resolve();
+}
+
 function authReducer(state, action) {
   switch (action.type) {
     case 'SET_LOADING':
@@ -34,16 +46,20 @@ export function AuthProvider({ children }) {
   }, []);
 
   const checkAuth = async () => {
+    const startedAt = Date.now();
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) {
         const res = await getProfile();
+        await waitRemaining(startedAt);
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user: res.data.data || res.data, token } });
       } else {
+        await waitRemaining(startedAt);
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     } catch {
       await AsyncStorage.removeItem('token');
+      await waitRemaining(startedAt);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
