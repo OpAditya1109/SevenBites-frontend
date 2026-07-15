@@ -38,8 +38,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   logo: {
-    width: 160,
-    height: 160,
+    width: 260,
+    height: 260,
   },
   loaderWrap: {
     position: 'absolute',
