@@ -3,9 +3,9 @@ import { View, Image, StyleSheet } from 'react-native';
 import { AppLoader, LOADING_MESSAGES } from '../components/AppLoader';
 import { COLORS } from '../utils/constants';
 
-// Full-screen splash — logo only for the first 5 seconds, then the
-// rotating loader message kicks in underneath if the auth check
-// (or a slow/waking backend) is still in progress.
+// Full-screen splash — red screen with logo for the first 5 seconds,
+// then switches to a black screen with the rotating loader message
+// if the auth check (or a slow/waking backend) is still in progress.
 export default function SplashScreen() {
   const [showLoader, setShowLoader] = useState(false);
 
@@ -15,16 +15,15 @@ export default function SplashScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require('../../assets/images/icon.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      {showLoader && (
-        <View style={styles.loaderWrap}>
-          <AppLoader messages={LOADING_MESSAGES.default} style={{ backgroundColor: 'transparent' }} />
-        </View>
+    <View style={[styles.container, { backgroundColor: showLoader ? '#000' : COLORS.primary }]}>
+      {!showLoader ? (
+        <Image
+          source={require('../../assets/images/icon.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      ) : (
+        <AppLoader messages={LOADING_MESSAGES.default} style={{ backgroundColor: 'transparent' }} />
       )}
     </View>
   );
@@ -35,14 +34,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
   },
   logo: {
     width: 260,
     height: 260,
-  },
-  loaderWrap: {
-    position: 'absolute',
-    bottom: 80,
   },
 });

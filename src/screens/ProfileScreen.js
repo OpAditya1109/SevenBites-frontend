@@ -5,16 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { getUserOrders, getMyReviews } from '../services/api';
-import { sendTestNotification } from '../services/orderNotifications';
 
 const MENU_ITEMS = [
   { icon: 'location-outline', label: 'My Addresses', screen: 'Address' },
   { icon: 'receipt-outline', label: 'Order History', screen: 'Orders' },
-  { icon: 'heart-outline', label: 'Favourites', screen: null },
-  { icon: 'card-outline', label: 'Payment Methods', screen: null },
-  { icon: 'gift-outline', label: 'Offers & Rewards', screen: null },
-  { icon: 'help-circle-outline', label: 'Help & Support', screen: null },
-  { icon: 'settings-outline', label: 'Settings', screen: null },
+  { icon: 'gift-outline', label: 'Offers & Rewards', screen: 'Offers' },
+  { icon: 'help-circle-outline', label: 'Help & Support', screen: 'HelpSupport' },
+  { icon: 'settings-outline', label: 'Settings', screen: 'Settings' },
 ];
 
 const VOID_STATUSES = ['cancelled', 'rejected'];
@@ -90,9 +87,6 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.userEmail}>{user?.email || 'email@example.com'}</Text>
             {user?.phone && <Text style={styles.userPhone}>{user.phone}</Text>}
           </View>
-          <TouchableOpacity style={styles.editBtn}>
-            <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.statsCard}>
@@ -128,14 +122,6 @@ export default function ProfileScreen({ navigation }) {
           ))}
         </View>
 
-        <TouchableOpacity
-  style={styles.testNotifBtn}
-  onPress={sendTestNotification}
->
-  <Ionicons name="notifications-outline" size={20} color={COLORS.primary} />
-  <Text style={styles.testNotifText}>Send Test Notification</Text>
-</TouchableOpacity>
-
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={COLORS.primary} />
           <Text style={styles.logoutText}>Logout</Text>
@@ -161,7 +147,6 @@ const styles = StyleSheet.create({
   userName: { fontSize: 18, fontWeight: '700', color: COLORS.white },
   userEmail: { fontSize: 13, color: COLORS.darkTextSecondary, marginTop: 2 },
   userPhone: { fontSize: 13, color: COLORS.darkTextSecondary },
-  editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.darkCardAlt, justifyContent: 'center', alignItems: 'center' },
   statsCard: {
     flexDirection: 'row', backgroundColor: COLORS.darkCard, marginHorizontal: 16, borderRadius: 16,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.darkBorder,
@@ -181,9 +166,4 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontSize: 16, fontWeight: '700', color: COLORS.primary },
   version: { textAlign: 'center', fontSize: 12, color: COLORS.darkTextSecondary, marginBottom: 8 },
-  testNotifBtn: {
-  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginHorizontal: 16, marginTop: 16,
-  borderWidth: 1.5, borderColor: COLORS.darkBorder, borderRadius: 14, padding: 14,
-},
-testNotifText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
 });

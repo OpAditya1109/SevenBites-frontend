@@ -4,6 +4,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
+import SettingsScreen from '../screens/SettingsScreen';
+import OffersScreen from '../screens/OffersScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { COLORS } from '../utils/constants';
@@ -102,6 +105,9 @@ export default function AppNavigator() {
             <Stack.Screen name="Cart" component={CartScreen} />
             <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
             <Stack.Screen name="Address" component={AddressScreen} />
+<Stack.Screen name="Settings" component={SettingsScreen} />
+<Stack.Screen name="Offers" component={OffersScreen} />
+<Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           </>
         )}
       </Stack.Navigator>
