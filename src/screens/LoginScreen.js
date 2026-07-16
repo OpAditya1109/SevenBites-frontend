@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS, SPACING, TERMS_URL, PRIVACY_URL } from '../utils/constants';
 import { useAuth } from '../context/AuthContext';
 import { ButtonLoader } from '../components/AppLoader';
 import { signInWithGoogle, isErrorWithCode, statusCodes } from '../services/googleAuth';
@@ -112,6 +112,18 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.registerLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          <Text style={styles.legalText}>
+            By continuing, you agree to our{' '}
+            <Text style={styles.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>
+              Terms of Service
+            </Text>{' '}
+            and{' '}
+            <Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+              Privacy Policy
+            </Text>
+            .
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -151,4 +163,9 @@ const styles = StyleSheet.create({
   registerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
   registerText: { fontSize: 14, color: COLORS.darkTextSecondary },
   registerLink: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  legalText: {
+    fontSize: 12, color: COLORS.darkTextSecondary, textAlign: 'center',
+    marginTop: 16, lineHeight: 18,
+  },
+  legalLink: { color: COLORS.primary, fontWeight: '600' },
 });

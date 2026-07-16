@@ -1,5 +1,8 @@
 import Constants from 'expo-constants';
 
+
+
+
 export const COLORS = {
   primary: '#E23744',
   secondary: '#FC8019',
@@ -60,7 +63,9 @@ export const SPACING = {
 };
 
 export const BASE_URL = Constants.expoConfig?.extra?.apiBaseUrl ?? 'http://localhost:5001/api';
-
+export const WEBSITE_URL = 'https://sevenbites.adityaxinnovations.com';
+export const TERMS_URL = `${WEBSITE_URL}/terms`;
+export const PRIVACY_URL = `${WEBSITE_URL}/privacy-policy`;
 // ── Billing ───────────────────────────────────────────
 export const ACTIVE_ADDRESS_KEY = 'sevenbites_active_address';
 
